@@ -140,3 +140,8 @@ class CursorRegister:
         self.log("Step5: 获取 Token...")
         token = self.step5_get_token(auth_code, state_encoded)
         return {"email": email, "password": password, "token": token}
+
+
+
+# CursorBrowserRegister 统一从 browser_register.py 导入，避免代码重复
+from platforms.cursor.browser_register import CursorBrowserRegister  # noqa: F401

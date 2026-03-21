@@ -1,6 +1,8 @@
 """邮箱池基类 - 抽象临时邮箱/收件服务"""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import html
+import re
 
 
 @dataclass
@@ -27,6 +29,43 @@ class BaseMailbox(ABC):
     def get_current_ids(self, account: MailboxAccount) -> set:
         """返回当前邮件 ID 集合（用于过滤旧邮件）"""
         ...
+
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        """等待并返回验证链接。默认由具体 provider 自行实现。"""
+        raise NotImplementedError(f"{self.__class__.__name__} 暂不支持 wait_for_link()")
+
+
+def _extract_verification_link(text: str, keyword: str = "") -> str | None:
+    combined = str(text or "")
+    lowered = combined.lower()
+    if keyword and keyword.lower() not in lowered:
+        return None
+
+    urls = [
+        html.unescape(raw).rstrip(").,;")
+        for raw in re.findall(r'https?://[^\s<>"\']+', combined, re.IGNORECASE)
+    ]
+    if not urls:
+        return None
+
+    primary_link_hints = ("verif", "confirm", "magic", "auth", "callback", "signin", "signup", "continue")
+    primary_host_hints = ("tavily", "firecrawl", "clerk", "stytch", "auth", "login")
+    for url in urls:
+        url_lower = url.lower()
+        if any(token in url_lower for token in primary_link_hints) and any(host in url_lower for host in primary_host_hints):
+            return url
+
+    verification_hints = ("verify", "verification", "confirm", "magic link", "sign in", "login", "auth", "tavily", "firecrawl")
+    if not any(token in lowered for token in verification_hints):
+        return None
+
+    for url in urls:
+        url_lower = url.lower()
+        if any(token in url_lower for token in primary_link_hints):
+            return url
+
+    return urls[0]
 
 
 def create_mailbox(provider: str, extra: dict = None, proxy: str = None) -> 'BaseMailbox':
@@ -127,11 +166,43 @@ class LaoudoMailbox(BaseMailbox):
                             continue
                         m = re.search(code_pattern or r'(?<!#)(?<!\d)(\d{6})(?!\d)', text)
                         if m:
-                            return m.group(1)
+                            return m.group(1) if m.groups() else m.group(0)
             except Exception:
                 pass
             time.sleep(4)
         raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import time
+        from curl_cffi import requests as curl_requests
+        seen = set(before_ids or [])
+        start = time.time()
+        headers = {"authorization": self.auth, "user-agent": self._ua}
+        while time.time() - start < timeout:
+            try:
+                r = curl_requests.get(
+                    f"{self.api}/list",
+                    params={"accountId": account.account_id, "allReceive": 0,
+                            "emailId": 0, "timeSort": 1, "size": 50, "type": 0},
+                    headers=headers, timeout=15, impersonate="chrome131"
+                )
+                if r.status_code == 200:
+                    mails = r.json().get("data", {}).get("list", []) or []
+                    for mail in mails:
+                        mid = mail.get("id") or mail.get("emailId")
+                        if not mid or mid in seen:
+                            continue
+                        seen.add(mid)
+                        text = (str(mail.get("subject", "")) + " " +
+                                str(mail.get("content") or mail.get("html") or ""))
+                        link = _extract_verification_link(text, keyword)
+                        if link:
+                            return link
+            except Exception:
+                pass
+            time.sleep(4)
+        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
 
 
 class AitreMailbox(BaseMailbox):
@@ -178,11 +249,41 @@ class AitreMailbox(BaseMailbox):
                             continue
                         m = re.search(code_pattern or r'(?<!#)(?<!\d)(\d{6})(?!\d)', text)
                         if m:
-                            return m.group(1)
+                            return m.group(1) if m.groups() else m.group(0)
             except Exception:
                 pass
             time.sleep(3)
         raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import time, requests
+        seen = set(before_ids or [])
+        last_check = None
+        start = time.time()
+        while time.time() - start < timeout:
+            params = {"email": account.email}
+            if last_check:
+                params["lastCheck"] = last_check
+            try:
+                r = requests.get(f"{self.api}/poll", params=params, timeout=10)
+                data = r.json()
+                last_check = data.get("lastChecked")
+                if data.get("count", 0) > 0:
+                    r2 = requests.get(f"{self.api}/emails", params={"email": account.email}, timeout=10)
+                    for mail in r2.json().get("emails", []):
+                        mid = str(mail.get("id", ""))
+                        if mid in seen:
+                            continue
+                        seen.add(mid)
+                        text = str(mail.get("preview", "")) + " " + str(mail.get("content", ""))
+                        link = _extract_verification_link(text, keyword)
+                        if link:
+                            return link
+            except Exception:
+                pass
+            time.sleep(3)
+        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
 
 
 class TempMailLolMailbox(BaseMailbox):
@@ -234,11 +335,35 @@ class TempMailLolMailbox(BaseMailbox):
                         continue
                     m = re.search(code_pattern or r'(?<!#)(?<!\d)(\d{6})(?!\d)', text)
                     if m:
-                        return m.group(1)
+                        return m.group(1) if m.groups() else m.group(0)
             except Exception:
                 pass
             time.sleep(3)
         raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import time, requests
+        seen = set(before_ids or [])
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                r = requests.get(f"{self.api}/inbox",
+                    params={"token": account.account_id},
+                    proxies=self.proxy, timeout=10)
+                for mail in sorted(r.json().get("emails", []), key=lambda x: x.get("date", 0), reverse=True):
+                    mid = str(mail.get("id", ""))
+                    if mid in seen:
+                        continue
+                    seen.add(mid)
+                    text = str(mail.get("subject", "")) + " " + str(mail.get("body", "")) + " " + str(mail.get("html", ""))
+                    link = _extract_verification_link(text, keyword)
+                    if link:
+                        return link
+            except Exception:
+                pass
+            time.sleep(3)
+        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
 
 
 class DuckMailMailbox(BaseMailbox):
@@ -326,6 +451,40 @@ class DuckMailMailbox(BaseMailbox):
             time.sleep(3)
         raise TimeoutError(f"等待验证码超时 ({timeout}s)")
 
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import time, requests
+        seen = set(before_ids or [])
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                r = requests.get(f"{self.api}/api/mail?endpoint=%2Fmessages%3Fpage%3D1",
+                    headers={"authorization": f"Bearer {account.account_id}",
+                             "x-api-provider-base-url": self.provider_url},
+                    proxies=self.proxy, timeout=10)
+                msgs = r.json().get("hydra:member", [])
+                for msg in msgs:
+                    mid = str(msg.get("id") or msg.get("msgid") or "")
+                    if mid in seen:
+                        continue
+                    seen.add(mid)
+                    try:
+                        r2 = requests.get(f"{self.api}/api/mail?endpoint=%2Fmessages%2F{mid}",
+                            headers={"authorization": f"Bearer {account.account_id}",
+                                     "x-api-provider-base-url": self.provider_url},
+                            proxies=self.proxy, timeout=10)
+                        detail = r2.json()
+                        body = str(detail.get("text") or "") + " " + str(detail.get("html") or "") + " " + str(detail.get("subject") or "")
+                    except Exception:
+                        body = str(msg.get("subject") or "")
+                    link = _extract_verification_link(body, keyword)
+                    if link:
+                        return link
+            except Exception:
+                pass
+            time.sleep(3)
+        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+
 
 class CFWorkerMailbox(BaseMailbox):
     """Cloudflare Worker 自建临时邮箱服务"""
@@ -408,11 +567,33 @@ class CFWorkerMailbox(BaseMailbox):
                     search_text = re.sub(r'\bt=\d+\b', '', search_text)
                     m = re.search(code_pattern or r'(?<!#)(?<!\d)(\d{6})(?!\d)', search_text)
                     if m:
-                        return m.group(1)
+                        return m.group(1) if m.groups() else m.group(0)
             except Exception:
                 pass
             time.sleep(3)
         raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import time
+        seen = set(before_ids or [])
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                mails = self._get_mails(account.email)
+                for mail in sorted(mails, key=lambda x: x.get("id", 0), reverse=True):
+                    mid = str(mail.get("id", ""))
+                    if not mid or mid in seen:
+                        continue
+                    seen.add(mid)
+                    raw = str(mail.get("raw", ""))
+                    link = _extract_verification_link(raw, keyword)
+                    if link:
+                        return link
+            except Exception:
+                pass
+            time.sleep(3)
+        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
 
 
 class MoeMailMailbox(BaseMailbox):
@@ -455,19 +636,28 @@ class MoeMailMailbox(BaseMailbox):
         print(f"[MoeMail] 登录失败，cookies: {[c.name for c in s.cookies]}")
         return ""
 
+    # 优先用这些域名（信誉较好，不易被 AWS/Google 等拒绝）
+    _PREFERRED_DOMAINS = ("sall.cc", "cnmlgb.de", "zhooo.org", "coolkid.icu")
+
     def get_email(self) -> MailboxAccount:
         # 每次调用都重新注册新账号，保证邮箱唯一
         self._session_token = None
         self._register_and_login()
         import random, string
         name = "".join(random.choices(string.ascii_letters + string.digits, k=8))
-        # 获取可用域名列表，随机选一个
+        # 获取可用域名列表，优先选信誉好的域名，避免被 AWS 等平台拒绝
         domain = "sall.cc"
         try:
             cfg_r = self._session.get(f"{self.api}/api/config", timeout=10)
-            domains = [d.strip() for d in cfg_r.json().get("emailDomains", "sall.cc").split(",") if d.strip()]
-            if domains:
-                domain = random.choice(domains)
+            all_domains = [d.strip() for d in cfg_r.json().get("emailDomains", "sall.cc").split(",") if d.strip()]
+            if all_domains:
+                # 从可用域名中筛选优先域名，按 _PREFERRED_DOMAINS 顺序选择
+                preferred = [d for d in self._PREFERRED_DOMAINS if d in all_domains]
+                if preferred:
+                    domain = random.choice(preferred)
+                else:
+                    # 无优先域名可用，从剩余中随机选
+                    domain = random.choice(all_domains)
         except Exception:
             pass
         r = self._session.post(f"{self.api}/api/emails/generate",
@@ -512,11 +702,41 @@ class MoeMailMailbox(BaseMailbox):
                         m = pattern.search(body)
                     else:
                         m = re.search(code_pattern or r'(?<!#)(?<!\d)(\d{6})(?!\d)', body)
-                    if m: return m.group(0) if code_pattern else m.group(1)
+                    if m: return m.group(1) if m.groups() else m.group(0) if code_pattern else m.group(1)
             except Exception:
                 pass
             time.sleep(3)
         raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import time
+        seen = set(before_ids or [])
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                r = self._session.get(f"{self.api}/api/emails/{account.account_id}",
+                    timeout=10)
+                msgs = r.json().get("messages", [])
+                for msg in msgs:
+                    mid = str(msg.get("id", ""))
+                    if not mid or mid in seen:
+                        continue
+                    seen.add(mid)
+                    body = (
+                        str(msg.get("content") or "") + " " +
+                        str(msg.get("text") or "") + " " +
+                        str(msg.get("body") or "") + " " +
+                        str(msg.get("html") or "") + " " +
+                        str(msg.get("subject") or "")
+                    )
+                    link = _extract_verification_link(body, keyword)
+                    if link:
+                        return link
+            except Exception:
+                pass
+            time.sleep(3)
+        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
 
 
 class FreemailMailbox(BaseMailbox):
@@ -594,3 +814,29 @@ class FreemailMailbox(BaseMailbox):
                 pass
             time.sleep(3)
         raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+
+    def wait_for_link(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import time
+        seen = set(before_ids or [])
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                r = self._session.get(f"{self.api}/api/emails",
+                    params={"mailbox": account.email, "limit": 20}, timeout=10)
+                for msg in r.json():
+                    mid = str(msg.get("id", ""))
+                    if not mid or mid in seen:
+                        continue
+                    seen.add(mid)
+                    text = " ".join(
+                        str(msg.get(key, ""))
+                        for key in ("preview", "subject", "html", "text", "content", "body")
+                    )
+                    link = _extract_verification_link(text, keyword)
+                    if link:
+                        return link
+            except Exception:
+                pass
+            time.sleep(3)
+        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")

@@ -95,6 +95,7 @@ def _auto_upload_cpa(task_id: str, account):
 def _run_register(task_id: str, req: RegisterTaskRequest):
     from core.registry import get
     from core.base_platform import RegisterConfig
+    from core.base_identity import normalize_identity_provider
     from core.db import save_account
     from core.base_mailbox import create_mailbox
 
@@ -105,17 +106,6 @@ def _run_register(task_id: str, req: RegisterTaskRequest):
 
     try:
         PlatformCls = get(req.platform)
-        config = RegisterConfig(
-            executor_type=req.executor_type,
-            captcha_solver=req.captcha_solver,
-            proxy=req.proxy,
-            extra=req.extra,
-        )
-        mailbox = create_mailbox(
-            provider=req.extra.get("mail_provider", "laoudo"),
-            extra=req.extra,
-            proxy=req.proxy,
-        )
         def _do_one(i: int):
             from core.proxy_pool import proxy_pool
             _proxy = req.proxy
@@ -127,7 +117,14 @@ def _run_register(task_id: str, req: RegisterTaskRequest):
                 proxy=_proxy,
                 extra=req.extra,
             )
-            _mailbox = mailbox.__class__(**mailbox.__dict__) if req.concurrency > 1 else mailbox
+            identity_provider = normalize_identity_provider(req.extra.get("identity_provider", "mailbox"))
+            _mailbox = None
+            if identity_provider == "mailbox":
+                _mailbox = create_mailbox(
+                    provider=req.extra.get("mail_provider", "laoudo"),
+                    extra=req.extra,
+                    proxy=_proxy,
+                )
             _platform = PlatformCls(config=_config, mailbox=_mailbox)
             _platform._log_fn = lambda msg: _log(task_id, msg)
             try:

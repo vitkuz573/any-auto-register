@@ -8,6 +8,8 @@ CONFIG_KEYS = [
     "laoudo_auth", "laoudo_email", "laoudo_account_id",
     "yescaptcha_key", "twocaptcha_key",
     "default_executor", "default_captcha_solver",
+    "default_identity_provider", "default_oauth_provider", "oauth_email_hint",
+    "chrome_user_data_dir", "chrome_cdp_url",
     "duckmail_api_url", "duckmail_provider_url", "duckmail_bearer",
     "freemail_api_url", "freemail_admin_token", "freemail_username", "freemail_password",
     "moemail_api_url",

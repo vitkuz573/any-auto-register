@@ -4,7 +4,17 @@ import { apiFetch, API_BASE } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { RefreshCw, Copy, ExternalLink, PlusCircle, Download, Upload, Plus, X } from 'lucide-react'
+import { RefreshCw, Copy, ExternalLink, Download, Upload, Plus, X, Mail } from 'lucide-react'
+
+const ALL_OAUTH_PROVIDERS = [
+  { value: 'google', label: 'Google' },
+  { value: 'github', label: 'GitHub' },
+  { value: 'microsoft', label: 'Microsoft' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'apple', label: 'Apple' },
+  { value: 'x', label: 'X' },
+  { value: 'builderid', label: 'Builder ID' },
+]
 
 const STATUS_VARIANT: Record<string, any> = {
   registered: 'default', trial: 'success', subscribed: 'success',
@@ -51,6 +61,132 @@ function LogPanel({ taskId, onDone }: { taskId: string; onDone: () => void }) {
   )
 }
 
+// ── 快捷注册按钮行 ──────────────────────────────────────────
+function QuickRegisterBar({ platform, platformMeta, onStart }: {
+  platform: string
+  platformMeta: any
+  onStart: (identityProvider: string, oauthProvider: string) => void
+}) {
+  const supportedModes: string[] = platformMeta?.supported_identity_modes || ['mailbox']
+  const supportedOAuth: string[] = platformMeta?.supported_oauth_providers || []
+
+  const buttons = [
+    { label: '邮箱', identity: 'mailbox', provider: '', enabled: supportedModes.includes('mailbox') },
+    ...ALL_OAUTH_PROVIDERS.map(p => ({
+      label: p.label, identity: 'oauth_browser', provider: p.value,
+      enabled: supportedModes.includes('oauth_browser') && supportedOAuth.includes(p.value),
+    })),
+  ]
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {buttons.map(btn => (
+        <button
+          key={btn.identity + btn.provider}
+          disabled={!btn.enabled}
+          title={!btn.enabled ? `${platformMeta?.display_name || platform} 不支持此注册方式` : `快捷注册：${btn.label}`}
+          onClick={() => btn.enabled && onStart(btn.identity, btn.provider)}
+          className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${
+            btn.enabled
+              ? 'border-[var(--border)] text-[var(--text-secondary)] hover:border-indigo-500 hover:text-indigo-400 cursor-pointer'
+              : 'border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed'
+          }`}
+        >
+          {btn.identity === 'mailbox' ? <Mail className="inline h-3 w-3 mr-1" /> : null}{btn.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── 快捷注册弹框 ──────────────────────────────────────────────
+function QuickRegisterModal({
+  platform, identityProvider, oauthProvider, onClose, onDone
+}: {
+  platform: string; identityProvider: string; oauthProvider: string
+  onClose: () => void; onDone: () => void
+}) {
+  const [regCount, setRegCount] = useState(1)
+  const [concurrency, setConcurrency] = useState(1)
+  const [taskId, setTaskId] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+  const [starting, setStarting] = useState(false)
+
+  const start = async () => {
+    setStarting(true)
+    try {
+      const cfg = await apiFetch('/config')
+      const executorType = identityProvider === 'oauth_browser' ? 'headed' : (cfg.default_executor || 'protocol')
+      const res = await apiFetch('/tasks/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          platform, count: regCount, concurrency,
+          executor_type: executorType,
+          captcha_solver: cfg.default_captcha_solver || 'yescaptcha',
+          proxy: null,
+          extra: {
+            identity_provider: identityProvider,
+            oauth_provider: oauthProvider,
+            oauth_email_hint: cfg.oauth_email_hint,
+            chrome_user_data_dir: cfg.chrome_user_data_dir,
+            chrome_cdp_url: cfg.chrome_cdp_url,
+            mail_provider: cfg.mail_provider || 'laoudo',
+            laoudo_auth: cfg.laoudo_auth, laoudo_email: cfg.laoudo_email,
+            laoudo_account_id: cfg.laoudo_account_id, yescaptcha_key: cfg.yescaptcha_key,
+            duckmail_api_url: cfg.duckmail_api_url, duckmail_provider_url: cfg.duckmail_provider_url,
+            duckmail_bearer: cfg.duckmail_bearer,
+            cfworker_api_url: cfg.cfworker_api_url, cfworker_admin_token: cfg.cfworker_admin_token,
+            cfworker_domain: cfg.cfworker_domain, cfworker_fingerprint: cfg.cfworker_fingerprint,
+          },
+        }),
+      })
+      setTaskId(res.task_id)
+    } finally { setStarting(false) }
+  }
+
+  const methodLabel = identityProvider === 'mailbox' ? '邮箱' : oauthProvider
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={!taskId ? onClose : undefined}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg shadow-2xl flex flex-col"
+           onClick={e => e.stopPropagation()} style={{maxHeight: '80vh'}}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">注册 {platform} · {methodLabel}</h2>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="px-6 py-4 flex-1 overflow-y-auto flex flex-col gap-4">
+          {!taskId ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-[var(--text-muted)] block mb-1">注册数量</label>
+                  <input type="number" min={1} max={99} value={regCount}
+                    onChange={e => setRegCount(Number(e.target.value))}
+                    className="w-full bg-[var(--bg-hover)] border border-[var(--border)] text-[var(--text-primary)] rounded-md px-3 py-1.5 text-sm text-center" />
+                </div>
+                <div>
+                  <label className="text-xs text-[var(--text-muted)] block mb-1">并发数</label>
+                  <input type="number" min={1} max={5} value={concurrency}
+                    onChange={e => setConcurrency(Number(e.target.value))}
+                    className="w-full bg-[var(--bg-hover)] border border-[var(--border)] text-[var(--text-primary)] rounded-md px-3 py-1.5 text-sm text-center" />
+                </div>
+              </div>
+              <Button onClick={start} disabled={starting} className="w-full">
+                {starting ? '启动中...' : '开始注册'}
+              </Button>
+            </div>
+          ) : (
+            <LogPanel taskId={taskId} onDone={() => { setDone(true); onDone() }} />
+          )}
+        </div>
+        <div className="px-6 py-3 border-t border-[var(--border)] flex justify-end">
+          <Button variant="outline" size="sm" onClick={onClose}>{done ? '关闭' : '取消'}</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── 注册弹框 ────────────────────────────────────────────────
 function RegisterModal({ platform, onClose, onDone }: { platform: string; onClose: () => void; onDone: () => void }) {
   const [regCount, setRegCount] = useState(1)
@@ -62,15 +198,37 @@ function RegisterModal({ platform, onClose, onDone }: { platform: string; onClos
   const start = async () => {
     setStarting(true)
     try {
-      const cfg = await apiFetch('/config')
+      const [cfg, platforms] = await Promise.all([
+        apiFetch('/config'),
+        apiFetch('/platforms').catch(() => []),
+      ])
+      const meta = (platforms || []).find((p: any) => p.name === platform) || {}
+      const supportedExecutors = meta.supported_executors || ['protocol']
+      const supportedIdentityModes = meta.supported_identity_modes || ['mailbox']
+      const supportedOAuthProviders = meta.supported_oauth_providers || []
+      const identityProvider = supportedIdentityModes.includes(cfg.default_identity_provider)
+        ? cfg.default_identity_provider
+        : supportedIdentityModes[0] || 'mailbox'
+      const executorType = supportedExecutors.includes(cfg.default_executor)
+        ? cfg.default_executor
+        : supportedExecutors[0] || 'protocol'
+      const oauthProvider = supportedOAuthProviders.includes(cfg.default_oauth_provider)
+        ? cfg.default_oauth_provider
+        : ''
+      const resolvedExecutorType = identityProvider === 'oauth_manual' && supportedExecutors.includes('headed')
+        ? 'headed'
+        : executorType
       const res = await apiFetch('/tasks/register', {
         method: 'POST',
         body: JSON.stringify({
           platform, count: regCount, concurrency,
-          executor_type: cfg.default_executor || 'protocol',
+          executor_type: resolvedExecutorType,
           captcha_solver: cfg.default_captcha_solver || 'yescaptcha',
           proxy: null,
           extra: {
+            identity_provider: identityProvider,
+            oauth_provider: oauthProvider,
+            oauth_email_hint: cfg.oauth_email_hint,
             mail_provider: cfg.mail_provider || 'laoudo',
             laoudo_auth: cfg.laoudo_auth, laoudo_email: cfg.laoudo_email,
             laoudo_account_id: cfg.laoudo_account_id, yescaptcha_key: cfg.yescaptcha_key,
@@ -347,7 +505,7 @@ export default function Accounts() {
   const [tab, setTab] = useState(platform || 'trae')
   useEffect(() => { if (platform) { setTab(platform) } }, [platform])
 
-const [accounts, setAccounts] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -357,6 +515,16 @@ const [accounts, setAccounts] = useState<any[]>([])
   const [showImport, setShowImport] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
+  const [quickReg, setQuickReg] = useState<{ identity: string; provider: string } | null>(null)
+  const [platformsMap, setPlatformsMap] = useState<Record<string, any>>({})
+
+  useEffect(() => {
+    apiFetch('/platforms').then((list: any[]) => {
+      const map: Record<string, any> = {}
+      list.forEach(p => { map[p.name] = p })
+      setPlatformsMap(map)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400)
@@ -397,6 +565,8 @@ const [accounts, setAccounts] = useState<any[]>([])
       {showImport && <ImportModal platform={tab} onClose={() => setShowImport(false)} onDone={() => { setShowImport(false); load() }} />}
       {showAdd && <AddModal platform={tab} onClose={() => setShowAdd(false)} onDone={() => { setShowAdd(false); load() }} />}
       {showRegister && <RegisterModal platform={tab} onClose={() => setShowRegister(false)} onDone={() => load()} />}
+      {quickReg && <QuickRegisterModal platform={tab} identityProvider={quickReg.identity} oauthProvider={quickReg.provider}
+        onClose={() => setQuickReg(null)} onDone={() => { setQuickReg(null); load() }} />}
 
       {/* 操作栏 */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -416,12 +586,14 @@ const [accounts, setAccounts] = useState<any[]>([])
           </select>
           <span className="text-xs text-[var(--text-muted)]">{total} 个账号</span>
         </div>
-        {/* 右侧：操作按钮 */}
-        <div className="flex items-center gap-2">
+        {/* 右侧：快捷注册 + 操作按钮 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <QuickRegisterBar platform={tab} platformMeta={platformsMap[tab]}
+            onStart={(identity, provider) => setQuickReg({ identity, provider })} />
+          <div className="w-px h-5 bg-[var(--border)]" />
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)}><Upload className="h-4 w-4 mr-1" />导入</Button>
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={accounts.length === 0}><Download className="h-4 w-4 mr-1" />导出</Button>
           <Button variant="outline" size="sm" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" />新增</Button>
-          <Button variant="outline" size="sm" onClick={() => setShowRegister(true)}><PlusCircle className="h-4 w-4 mr-1" />注册</Button>
           <Button variant="outline" size="sm" onClick={() => load()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>

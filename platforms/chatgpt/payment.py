@@ -51,17 +51,29 @@ def _extract_oai_did(cookies_str: str) -> Optional[str]:
 def _parse_cookie_str(cookies_str: str, domain: str) -> list:
     """将 'key=val; key2=val2' 格式解析为 Playwright cookie 列表"""
     cookies = []
+    # Playwright对于部分域名的cookie要求首字母带点
+    if domain == "chatgpt.com":
+        domain = ".chatgpt.com"
+        
     for part in cookies_str.split(";"):
         part = part.strip()
         if "=" not in part:
             continue
         name, _, value = part.partition("=")
-        cookies.append({
-            "name": name.strip(),
+        cookie_name = name.strip()
+        
+        cookie_obj = {
+            "name": cookie_name,
             "value": value.strip(),
             "domain": domain,
             "path": "/",
-        })
+        }
+        
+        # Chromium/Playwright: prefix __Secure- 开头的 cookie 必须携带 secure: True 的 flag
+        if cookie_name.startswith("__Secure-"):
+            cookie_obj["secure"] = True
+            
+        cookies.append(cookie_obj)
     return cookies
 
 

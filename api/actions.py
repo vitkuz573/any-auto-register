@@ -51,15 +51,24 @@ def execute_action(
 
     try:
         result = instance.execute_action(action_id, account, body.params)
-        # 若操作返回了新 token，更新数据库
+        # 若操作返回了需要落库的数据，更新数据库
         if result.get("ok") and result.get("data", {}) and isinstance(result["data"], dict):
             data = result["data"]
+            needs_save = False
+            
             if "access_token" in data:
                 extra = acc_model.get_extra()
                 extra.update(data)
                 acc_model.set_extra(extra)
                 if data.get("access_token"):
                     acc_model.token = data["access_token"]
+                needs_save = True
+                
+            if "url" in data and action_id == "payment_link":
+                acc_model.cashier_url = data["url"]
+                needs_save = True
+                
+            if needs_save:
                 from datetime import datetime, timezone
                 acc_model.updated_at = datetime.now(timezone.utc)
                 session.add(acc_model)

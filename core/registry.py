@@ -30,7 +30,22 @@ def get(name: str) -> Type[BasePlatform]:
 
 
 def list_platforms() -> list:
-    return [
-        {"name": cls.name, "display_name": cls.display_name, "version": cls.version}
-        for cls in _registry.values()
-    ]
+    from core.config_store import config_store
+    import json
+    result = []
+    for cls in _registry.values():
+        caps = {
+            "supported_executors": list(getattr(cls, "supported_executors", ["protocol"])),
+            "supported_identity_modes": list(getattr(cls, "supported_identity_modes", ["mailbox"])),
+            "supported_oauth_providers": list(getattr(cls, "supported_oauth_providers", [])),
+        }
+        override_raw = config_store.get(f"platform_caps.{cls.name}", "")
+        if override_raw:
+            try:
+                override = json.loads(override_raw)
+                caps.update({k: v for k, v in override.items() if k in caps})
+            except Exception:
+                pass
+        result.append({"name": cls.name, "display_name": cls.display_name,
+                       "version": cls.version, **caps})
+    return result

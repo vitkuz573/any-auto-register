@@ -44,6 +44,8 @@ class BasePlatform(ABC):
     version: str = "1.0.0"
     # 子类声明支持的执行器类型，未列出的自动降级到 protocol
     supported_executors: list = ["protocol", "headless", "headed"]
+    supported_identity_modes: list = ["mailbox"]
+    supported_oauth_providers: list = []
 
     def __init__(self, config: RegisterConfig = None):
         self.config = config or RegisterConfig()
@@ -108,6 +110,96 @@ class BasePlatform(ABC):
         elif t == "manual":
             return ManualCaptcha()
         elif t == "local_solver":
-            url = self.config.extra.get("solver_url", "http://localhost:8888")
+            url = self.config.extra.get("solver_url", "http://localhost:8889")
             return LocalSolverCaptcha(url)
         raise ValueError(f"未知验证码解决器: {t}")
+
+    def _get_identity_provider_name(self) -> str:
+        from .base_identity import normalize_identity_provider
+        return normalize_identity_provider(self.config.extra.get("identity_provider", "mailbox"))
+
+    def _get_identity_provider(self):
+        from .base_identity import create_identity_provider
+
+        mode = self._get_identity_provider_name()
+        if mode not in self.supported_identity_modes:
+            raise NotImplementedError(
+                f"{self.display_name} 暂不支持 identity_provider='{mode}'，"
+                f"当前支持: {self.supported_identity_modes}"
+            )
+        return create_identity_provider(
+            mode,
+            mailbox=getattr(self, "mailbox", None),
+            extra=self.config.extra,
+        )
+
+    def _resolve_identity(self, email: str = None, *, require_email: bool = True):
+        identity = self._get_identity_provider().resolve(email)
+        if require_email and not identity.email:
+            raise ValueError(
+                f"{self.display_name} 注册流程未获取到可用邮箱，"
+                f"请提供 email 或配置支持的 identity_provider"
+            )
+        return identity
+
+    def _build_otp_callback(
+        self,
+        identity,
+        *,
+        keyword: str = "",
+        timeout: Optional[int] = None,
+        code_pattern: Optional[str] = None,
+        wait_message: str = "等待验证码...",
+        success_label: str = "验证码",
+    ):
+        mailbox = getattr(self, "mailbox", None)
+        mail_acct = getattr(identity, "mailbox_account", None)
+        if not mailbox or not mail_acct:
+            return None
+
+        log = getattr(self, "_log_fn", print)
+
+        def otp_cb():
+            log(wait_message)
+            kwargs = {"keyword": keyword, "before_ids": identity.before_ids}
+            if timeout is not None:
+                kwargs["timeout"] = timeout
+            if code_pattern:
+                kwargs["code_pattern"] = code_pattern
+            code = mailbox.wait_for_code(mail_acct, **kwargs)
+            if code:
+                log(f"{success_label}: {code}")
+            return code
+
+        return otp_cb
+
+    def _build_link_callback(
+        self,
+        identity,
+        *,
+        keyword: str = "",
+        timeout: Optional[int] = None,
+        wait_message: str = "等待验证链接邮件...",
+        success_label: str = "验证链接",
+        preview_chars: int = 80,
+    ):
+        mailbox = getattr(self, "mailbox", None)
+        mail_acct = getattr(identity, "mailbox_account", None)
+        if not mailbox or not mail_acct:
+            return None
+
+        log = getattr(self, "_log_fn", print)
+
+        def link_cb():
+            log(wait_message)
+            before_ids = mailbox.get_current_ids(mail_acct)
+            kwargs = {"keyword": keyword, "before_ids": before_ids}
+            if timeout is not None:
+                kwargs["timeout"] = timeout
+            link = mailbox.wait_for_link(mail_acct, **kwargs)
+            if link:
+                preview = link if len(link) <= preview_chars else f"{link[:preview_chars]}..."
+                log(f"{success_label}: {preview}")
+            return link
+
+        return link_cb

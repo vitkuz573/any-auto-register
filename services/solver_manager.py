@@ -31,7 +31,9 @@ def start():
         )
         _proc = subprocess.Popen(
             [sys.executable, solver_script,
-             "--browser_type", "camoufox"],
+             "--browser_type", "camoufox",
+             "--thread", "1",   # 只需要 1 个浏览器，节省资源
+             "--port", str(SOLVER_PORT)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

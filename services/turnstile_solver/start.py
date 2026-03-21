@@ -4,7 +4,6 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from api_solver import create_app, parse_args
-import asyncio
 
 if __name__ == "__main__":
     args = parse_args()
@@ -19,4 +18,4 @@ if __name__ == "__main__":
         browser_name=args.browser,
         browser_version=args.version,
     )
-    app.run(host=args.host, port=int(os.environ.get('SOLVER_PORT', '8889')))
+    app.run(host=args.host, port=int(args.port))

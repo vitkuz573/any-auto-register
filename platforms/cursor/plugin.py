@@ -10,6 +10,9 @@ class CursorPlatform(BasePlatform):
     name = "cursor"
     display_name = "Cursor"
     version = "1.0.0"
+    supported_executors = ["protocol", "headless", "headed"]
+    supported_identity_modes = ["mailbox", "oauth_browser"]
+    supported_oauth_providers = ["google", "github"]
 
     def __init__(self, config: RegisterConfig = None, mailbox: BaseMailbox = None):
         super().__init__(config)
@@ -19,23 +22,110 @@ class CursorPlatform(BasePlatform):
         log = getattr(self, '_log_fn', print)
         proxy = self.config.proxy
         yescaptcha_key = self.config.extra.get("yescaptcha_key", "")
+        extra = self.config.extra or {}
 
+        identity = self._resolve_identity(email, require_email=False)
+
+        # 浏览器模式注册
+        if (self.config.executor_type or "") in ("headless", "headed"):
+            log(f"使用浏览器模式注册: {identity.email or '(oauth)'}")
+            
+            # OAuth 模式暂时保留原实现
+            if identity.identity_provider == "oauth_browser":
+                if self.config.executor_type != "headed":
+                    raise RuntimeError("Cursor 浏览器 OAuth 仅支持 executor_type=headed")
+                from platforms.cursor.browser_oauth import register_with_browser_oauth
+                result = register_with_browser_oauth(
+                    proxy=proxy,
+                    oauth_provider=identity.oauth_provider,
+                    email_hint=identity.email,
+                    timeout=int(extra.get("browser_oauth_timeout", extra.get("manual_oauth_timeout", 300)) or 300),
+                    log_fn=log,
+                    headless=(self.config.executor_type == "headless"),
+                    chrome_user_data_dir=identity.chrome_user_data_dir,
+                    chrome_cdp_url=identity.chrome_cdp_url,
+                )
+                return Account(
+                    platform="cursor",
+                    email=result["email"],
+                    password="",
+                    token=result["token"],
+                    status=AccountStatus.REGISTERED,
+                    extra={"user_info": result.get("user_info", {})},
+                )
+            
+            # 邮箱模式：使用 Camoufox 浏览器注册
+            if not identity.email:
+                raise ValueError("浏览器模式需要邮箱地址")
+
+            # 构建 captcha solver：优先 local_solver，其次 yescaptcha
+            captcha_solver = None
+            captcha_type = self.config.captcha_solver or "local_solver"
+            if captcha_type == "local_solver":
+                from core.base_captcha import LocalSolverCaptcha
+                solver_url = self.config.extra.get("solver_url", "http://localhost:8889")
+                captcha_solver = LocalSolverCaptcha(solver_url)
+            elif captcha_type == "yescaptcha":
+                captcha_solver = self._make_captcha()
+
+            # 构建 otp_callback（从 mailbox 获取验证码）
+            otp_cb = self._build_otp_callback(
+                identity,
+                wait_message="等待 Cursor 邮箱验证码...",
+                success_label="验证码",
+            )
+
+            from platforms.cursor.browser_register import CursorBrowserRegister
+            reg = CursorBrowserRegister(
+                captcha=captcha_solver,
+                headless=(self.config.executor_type == "headless"),
+                proxy=proxy,
+                otp_callback=otp_cb,
+                log_fn=log,
+            )
+            result = reg.register(email=identity.email, password=password or "")
+            return Account(
+                platform="cursor",
+                email=result["email"],
+                password=result.get("password", ""),
+                token=result["token"],
+                status=AccountStatus.REGISTERED,
+            )
+
+        # 协议模式 OAuth
+        if identity.identity_provider == "oauth_browser":
+            from platforms.cursor.browser_oauth import register_with_browser_oauth
+            result = register_with_browser_oauth(
+                proxy=proxy,
+                oauth_provider=identity.oauth_provider,
+                email_hint=identity.email,
+                timeout=int(extra.get("browser_oauth_timeout", extra.get("manual_oauth_timeout", 300)) or 300),
+                log_fn=log,
+                headless=(self.config.executor_type == "headless"),
+                chrome_user_data_dir=identity.chrome_user_data_dir,
+                chrome_cdp_url=identity.chrome_cdp_url,
+            )
+            return Account(
+                platform="cursor",
+                email=result["email"],
+                password="",
+                token=result["token"],
+                status=AccountStatus.REGISTERED,
+                extra={"user_info": result.get("user_info", {})},
+            )
+
+        # 协议模式邮箱注册
+        if not identity.email:
+            raise ValueError("Cursor 注册流程依赖 mailbox provider，当前未获取到邮箱账号")
+        
         reg = CursorRegister(proxy=proxy, log_fn=log)
-
-        mail_acct = self.mailbox.get_email() if self.mailbox else None
-        email = email or (mail_acct.email if mail_acct else None)
-        before_ids = self.mailbox.get_current_ids(mail_acct) if mail_acct else set()
-
-        def otp_cb():
-            log("等待验证码...")
-            code = self.mailbox.wait_for_code(mail_acct, keyword="", before_ids=before_ids)
-            if code: log(f"验证码: {code}")
-            return code
+        log(f"邮箱: {identity.email}")
+        otp_cb = self._build_otp_callback(identity, wait_message="等待验证码...")
 
         result = reg.register(
-            email=email,
+            email=identity.email,
             password=password,
-            otp_callback=otp_cb if self.mailbox else None,
+            otp_callback=otp_cb,
             yescaptcha_key=yescaptcha_key,
         )
 

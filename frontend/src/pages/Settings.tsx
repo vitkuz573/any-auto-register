@@ -1,8 +1,115 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Save, Eye, EyeOff, Mail, Shield, Cpu, RefreshCw, CheckCircle, XCircle } from 'lucide-react'
+import { Save, Eye, EyeOff, Mail, Shield, Cpu, RefreshCw, CheckCircle, XCircle, Sliders } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+const ALL_IDENTITY_MODES = ['mailbox', 'oauth_browser']
+const ALL_OAUTH_PROVIDERS = ['google', 'github', 'microsoft', 'linkedin', 'apple', 'x', 'builderid']
+
+function PlatformCapsTab() {
+  const [platforms, setPlatforms] = useState<any[]>([])
+  const [drafts, setDrafts] = useState<Record<string, any>>({})
+  const [saving, setSaving] = useState<Record<string, boolean>>({})
+  const [saved, setSaved] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    apiFetch('/platforms').then((list: any[]) => {
+      setPlatforms(list)
+      const init: Record<string, any> = {}
+      list.forEach(p => {
+        init[p.name] = {
+          supported_identity_modes: [...p.supported_identity_modes],
+          supported_oauth_providers: [...p.supported_oauth_providers],
+        }
+      })
+      setDrafts(init)
+    })
+  }, [])
+
+  const toggle = (name: string, field: string, value: string) => {
+    setDrafts(d => {
+      const arr: string[] = [...(d[name]?.[field] || [])]
+      const idx = arr.indexOf(value)
+      if (idx >= 0) arr.splice(idx, 1); else arr.push(value)
+      return { ...d, [name]: { ...d[name], [field]: arr } }
+    })
+  }
+
+  const save = async (name: string) => {
+    setSaving(s => ({ ...s, [name]: true }))
+    try {
+      await apiFetch(`/platforms/${name}/capabilities`, { method: 'PUT', body: JSON.stringify(drafts[name]) })
+      setSaved(s => ({ ...s, [name]: true }))
+      setTimeout(() => setSaved(s => ({ ...s, [name]: false })), 2000)
+    } finally { setSaving(s => ({ ...s, [name]: false })) }
+  }
+
+  const reset = async (name: string) => {
+    await apiFetch(`/platforms/${name}/capabilities`, { method: 'DELETE' })
+    const list = await apiFetch('/platforms')
+    const p = list.find((x: any) => x.name === name)
+    if (p) setDrafts(d => ({ ...d, [name]: { supported_identity_modes: [...p.supported_identity_modes], supported_oauth_providers: [...p.supported_oauth_providers] } }))
+  }
+
+  return (
+    <div className="space-y-4">
+      {platforms.map(p => {
+        const draft = drafts[p.name] || {}
+        const modes: string[] = draft.supported_identity_modes || []
+        const oauths: string[] = draft.supported_oauth_providers || []
+        return (
+          <div key={p.name} className="bg-white/[0.03] border border-[var(--border)] rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{p.display_name}</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{p.name} v{p.version}</p>
+              </div>
+              <button onClick={() => reset(p.name)}
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border)] rounded px-2 py-1">
+                恢复默认
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-[var(--text-muted)] mb-2">注册方式</p>
+                <div className="flex gap-4">
+                  {ALL_IDENTITY_MODES.map(m => (
+                    <label key={m} className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer">
+                      <input type="checkbox" checked={modes.includes(m)}
+                        onChange={() => toggle(p.name, 'supported_identity_modes', m)}
+                        className="accent-indigo-500" />
+                      {m}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--text-muted)] mb-2">OAuth 提供商</p>
+                <div className="flex flex-wrap gap-4">
+                  {ALL_OAUTH_PROVIDERS.map(o => (
+                    <label key={o} className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer">
+                      <input type="checkbox" checked={oauths.includes(o)}
+                        onChange={() => toggle(p.name, 'supported_oauth_providers', o)}
+                        className="accent-indigo-500" />
+                      {o}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Button size="sm" onClick={() => save(p.name)} disabled={saving[p.name]}>
+                <Save className="h-3.5 w-3.5 mr-1" />
+                {saved[p.name] ? '已保存 ✓' : saving[p.name] ? '保存中...' : '保存'}
+              </Button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 const SELECT_FIELDS: Record<string, { label: string; value: string }[]> = {
   mail_provider: [
@@ -24,9 +131,23 @@ const SELECT_FIELDS: Record<string, { label: string; value: string }[]> = {
     { label: '本地 Solver (Camoufox)', value: 'local_solver' },
     { label: '手动', value: 'manual' },
   ],
+  default_identity_provider: [
+    { label: '系统自动完成', value: 'mailbox' },
+    { label: '浏览器自动/人工完成', value: 'oauth_browser' },
+  ],
+  default_oauth_provider: [
+    { label: '不预选，我自己在页面里选', value: '' },
+    { label: 'GitHub', value: 'github' },
+    { label: 'Google', value: 'google' },
+    { label: 'Microsoft', value: 'microsoft' },
+    { label: 'LinkedIn', value: 'linkedin' },
+    { label: 'Apple', value: 'apple' },
+    { label: 'X', value: 'x' },
+    { label: 'Builder ID', value: 'builderid' },
+  ],
 }
 
-const TABS = [
+const TABS: { id: string; label: string; icon: any; sections?: any[] }[] = [
   {
     id: 'register', label: '注册设置', icon: Cpu,
     sections: [{
@@ -34,6 +155,11 @@ const TABS = [
       desc: '控制注册任务如何执行',
       items: [
         { key: 'default_executor', label: '执行器类型' },
+        { key: 'default_identity_provider', label: '默认注册方式' },
+        { key: 'default_oauth_provider', label: '浏览器默认登录入口', placeholder: '' },
+        { key: 'oauth_email_hint', label: '预期登录邮箱', placeholder: 'your-account@example.com' },
+        { key: 'chrome_user_data_dir', label: 'Chrome Profile 路径', placeholder: '~/Library/Application Support/Google/Chrome' },
+        { key: 'chrome_cdp_url', label: 'Chrome CDP 地址', placeholder: 'http://localhost:9222' },
       ],
     }],
   },
@@ -102,6 +228,10 @@ const TABS = [
         { key: 'twocaptcha_key', label: '2Captcha Key', secret: true },
       ],
     }],
+  },
+  {
+    id: 'platform_caps', label: '平台能力', icon: Sliders,
+    sections: [],
   },
   {
     id: 'chatgpt', label: 'ChatGPT', icon: Shield,
@@ -238,23 +368,28 @@ export default function Settings() {
 
         {/* Right content */}
         <div className="flex-1 space-y-4">
-          {tab.sections.map(({ section, desc, items }) => (
-            <div key={section} className="bg-white/[0.03] border border-[var(--border)] rounded-xl p-5">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{section}</h3>
-                {desc && <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>}
-              </div>
-              {items.map((field: any) => (
-                <Field key={field.key} field={field} form={form} setForm={setForm}
-                  showSecret={showSecret} setShowSecret={setShowSecret} />
+          {activeTab === 'platform_caps' ? (
+            <PlatformCapsTab />
+          ) : (
+            <>
+              {tab.sections.map(({ section, desc, items }) => (
+                <div key={section} className="bg-white/[0.03] border border-[var(--border)] rounded-xl p-5">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">{section}</h3>
+                    {desc && <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>}
+                  </div>
+                  {items.map((field: any) => (
+                    <Field key={field.key} field={field} form={form} setForm={setForm}
+                      showSecret={showSecret} setShowSecret={setShowSecret} />
+                  ))}
+                </div>
               ))}
-            </div>
-          ))}
-
-          <Button onClick={save} disabled={saving} className="w-full">
-            <Save className="h-4 w-4 mr-2" />
-            {saved ? '已保存 ✓' : saving ? '保存中...' : '保存配置'}
-          </Button>
+              <Button onClick={save} disabled={saving} className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                {saved ? '已保存 ✓' : saving ? '保存中...' : '保存配置'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

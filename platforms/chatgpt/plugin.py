@@ -10,6 +10,9 @@ class ChatGPTPlatform(BasePlatform):
     name = "chatgpt"
     display_name = "ChatGPT"
     version = "1.0.0"
+    supported_executors = ["protocol", "headless", "headed"]
+    supported_identity_modes = ["mailbox", "oauth_browser"]
+    supported_oauth_providers = ["google", "microsoft", "apple"]
 
     def __init__(self, config: RegisterConfig = None, mailbox: BaseMailbox = None):
         super().__init__(config)
@@ -28,6 +31,78 @@ class ChatGPTPlatform(BasePlatform):
         except Exception:
             return False
 
+    def _make_email_service(self, identity):
+        provider = (self.config.extra or {}).get("mail_provider", "tempmail_lol")
+        mailbox = getattr(self, "mailbox", None)
+        mail_acct = getattr(identity, "mailbox_account", None)
+        if not mailbox or not mail_acct:
+            raise ValueError("ChatGPT 注册流程依赖 mailbox provider，当前未获取到邮箱账号")
+
+        class MailboxEmailService:
+            service_type = type("ST", (), {"value": provider})()
+
+            def __init__(self):
+                self._acct = None
+
+            def create_email(self, config=None):
+                self._acct = mail_acct
+                return {
+                    "email": mail_acct.email,
+                    "service_id": getattr(mail_acct, "account_id", ""),
+                    "token": getattr(mail_acct, "account_id", ""),
+                }
+
+            def get_verification_code(self, email=None, email_id=None, timeout=120, pattern=None, otp_sent_at=None):
+                acct = self._acct or mail_acct
+                return mailbox.wait_for_code(acct, keyword="", timeout=timeout, code_pattern=pattern)
+
+            def update_status(self, success, error=None):
+                return None
+
+            @property
+            def status(self):
+                return None
+
+        return MailboxEmailService()
+
+    def _register_browser(self, identity, password: str) -> Account:
+        log = getattr(self, '_log_fn', print)
+        extra = self.config.extra or {}
+        identity_mode = identity.identity_provider
+        if identity_mode == "oauth_browser" and self.config.executor_type != "headed":
+            raise RuntimeError("ChatGPT 浏览器 OAuth 仅支持 executor_type=headed")
+        if identity_mode == "mailbox" and not identity.has_mailbox:
+            raise ValueError("ChatGPT 浏览器邮箱注册依赖 mailbox provider")
+        otp_cb = self._build_otp_callback(identity, wait_message="等待验证码...")
+        from platforms.chatgpt.browser_register import ChatGPTBrowserRegister
+        reg = ChatGPTBrowserRegister(
+            headless=(self.config.executor_type == "headless"),
+            proxy=self.config.proxy,
+            otp_callback=otp_cb,
+            oauth_provider=identity.oauth_provider,
+            manual_oauth_timeout=int(extra.get("browser_oauth_timeout", extra.get("manual_oauth_timeout", 300)) or 300),
+            chrome_user_data_dir=identity.chrome_user_data_dir,
+            chrome_cdp_url=identity.chrome_cdp_url,
+            log_fn=log,
+        )
+        result = reg.register(email=identity.email or "", password=password, identity_provider=identity_mode)
+        return Account(
+            platform='chatgpt',
+            email=result["email"],
+            password=result.get("password", ""),
+            token=result.get("access_token", ""),
+            status=AccountStatus.REGISTERED,
+            extra={
+                'access_token': result.get("access_token", ""),
+                'refresh_token': result.get("refresh_token", ""),
+                'id_token': result.get("id_token", ""),
+                'session_token': result.get("session_token", ""),
+                'workspace_id': result.get("workspace_id", ""),
+                'cookies': result.get("cookies", ""),
+                'profile': result.get("profile", {}),
+            },
+        )
+
     def register(self, email: str = None, password: str = None) -> Account:
         if not password:
             password = "".join(random.choices(
@@ -35,54 +110,55 @@ class ChatGPTPlatform(BasePlatform):
 
         proxy = self.config.proxy if self.config else None
         log_fn = getattr(self, '_log_fn', print)
-        mail_provider = (self.config.extra or {}).get('mail_provider', 'tempmail_lol')
+        extra = self.config.extra or {}
+        identity = self._resolve_identity(email, require_email=False)
+
+        if (self.config.executor_type or "") in ("headless", "headed"):
+            log_fn(f"使用浏览器模式注册: {identity.email or '(oauth)'}")
+            return self._register_browser(identity, password)
+
+        if identity.identity_provider == "oauth_browser":
+            from platforms.chatgpt.browser_oauth import register_with_browser_oauth
+            result = register_with_browser_oauth(
+                proxy=proxy,
+                oauth_provider=identity.oauth_provider,
+                email_hint=identity.email,
+                timeout=int(extra.get("browser_oauth_timeout", extra.get("manual_oauth_timeout", 300)) or 300),
+                log_fn=log_fn,
+                headless=(self.config.executor_type == "headless"),
+                chrome_user_data_dir=identity.chrome_user_data_dir,
+                chrome_cdp_url=identity.chrome_cdp_url,
+            )
+            return Account(
+                platform='chatgpt',
+                email=result["email"],
+                password="",
+                user_id=result.get("account_id", ""),
+                token=result.get("access_token", ""),
+                status=AccountStatus.REGISTERED,
+                extra={
+                    'access_token': result.get("access_token", ""),
+                    'refresh_token': result.get("refresh_token", ""),
+                    'id_token': result.get("id_token", ""),
+                    'session_token': result.get("session_token", ""),
+                    'workspace_id': result.get("workspace_id", ""),
+                    'cookies': result.get("cookies", ""),
+                    'profile': result.get("profile", {}),
+                },
+            )
+
+        if not identity.email:
+            raise ValueError("ChatGPT 注册流程依赖 mailbox provider，当前未获取到邮箱账号")
+        log_fn(f"邮箱: {identity.email}")
 
         from platforms.chatgpt.register import RegistrationEngine
-        log_fn = getattr(self, '_log_fn', print)
-
-        if mail_provider == 'laoudo' and self.mailbox:
-            mail_acct = self.mailbox.get_email()
-            email = email or mail_acct.email
-            _mailbox = self.mailbox
-            _mail_acct = mail_acct
-
-            class LaoudoEmailService:
-                service_type = type('ST', (), {'value': 'laoudo'})()
-                def create_email(self, config=None):
-                    return {'email': _mail_acct.email, 'service_id': _mail_acct.account_id, 'token': ''}
-                def get_verification_code(self, email=None, email_id=None, timeout=120, pattern=None, otp_sent_at=None):
-                    return _mailbox.wait_for_code(_mail_acct, keyword="", timeout=timeout)
-                def update_status(self, success, error=None): pass
-                @property
-                def status(self): return None
-
-            engine = RegistrationEngine(
-                email_service=LaoudoEmailService(),
-                proxy_url=proxy, callback_logger=log_fn)
-            engine.email = email
-            engine.password = password
-        else:
-            from core.base_mailbox import TempMailLolMailbox
-            _tmail = TempMailLolMailbox(proxy=proxy)
-
-            class TempMailEmailService:
-                service_type = type('ST', (), {'value': 'tempmail_lol'})()
-                def create_email(self, config=None):
-                    acct = _tmail.get_email()
-                    self._acct = acct
-                    return {'email': acct.email, 'service_id': acct.account_id, 'token': acct.account_id}
-                def get_verification_code(self, email=None, email_id=None, timeout=120, pattern=None, otp_sent_at=None):
-                    return _tmail.wait_for_code(self._acct, keyword="", timeout=timeout)
-                def update_status(self, success, error=None): pass
-                @property
-                def status(self): return None
-
-            engine = RegistrationEngine(
-                email_service=TempMailEmailService(),
-                proxy_url=proxy, callback_logger=log_fn)
-            if email:
-                engine.email = email
-                engine.password = password
+        engine = RegistrationEngine(
+            email_service=self._make_email_service(identity),
+            proxy_url=proxy,
+            callback_logger=log_fn,
+        )
+        engine.email = identity.email
+        engine.password = password
 
         result = engine.run()
         if not result or not result.success:
@@ -150,14 +226,24 @@ class ChatGPTPlatform(BasePlatform):
             return {"ok": False, "error": result.error_message}
 
         elif action_id == "payment_link":
-            from platforms.chatgpt.payment import generate_plus_link, generate_team_link
+            from platforms.chatgpt.payment import generate_plus_link, generate_team_link, open_url_incognito
             plan = params.get("plan", "plus")
             country = params.get("country", "US")
+            
+            # 手动拼凑基础 cookie，以防历史老账号没有保存完整的 cookie 字符串
+            if not a.cookies and a.session_token:
+                a.cookies = f"__Secure-next-auth.session-token={a.session_token}"
+                
             if plan == "plus":
                 url = generate_plus_link(a, proxy=proxy, country=country)
             else:
                 url = generate_team_link(a, proxy=proxy, country=country)
-            return {"ok": bool(url), "data": {"url": url}}
+            
+            # 使用本地指纹浏览器无痕挂载 Cookie 强制打开支付页面（防止直接在自己浏览器被踢出登录）
+            if url and a.cookies:
+                open_url_incognito(url, a.cookies)
+                
+            return {"ok": bool(url), "data": {"url": url, "message": "支付链接已生成，正在启动带凭证的独立无痕浏览器..."}}
 
         elif action_id == "upload_cpa":
             from platforms.chatgpt.cpa_upload import upload_to_cpa, generate_token_json
