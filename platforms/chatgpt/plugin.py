@@ -58,15 +58,39 @@ class ChatGPTPlatform(BasePlatform):
     def check_valid(self, account: Account) -> bool:
         try:
             from platforms.chatgpt.payment import check_subscription_status
+            from core.proxy_pool import proxy_pool
             class _A: pass
             a = _A()
             extra = account.extra or {}
             a.access_token = extra.get("access_token") or account.token
+            a.id_token = extra.get("id_token", "")
             a.cookies = extra.get("cookies", "")
-            status = check_subscription_status(a, proxy=self.config.proxy if self.config else None)
-            return status not in ("expired", "invalid", "banned", None)
+            a.extra = extra
+
+            region = str(getattr(account, "region", "") or extra.get("region", "") or "").strip()
+            configured_proxy = self.config.proxy if self.config else None
+            proxy_candidates: list[tuple[str | None, bool]] = []
+            if configured_proxy:
+                proxy_candidates.append((configured_proxy, False))
+            else:
+                pooled_proxy = proxy_pool.get_next(region=region)
+                if pooled_proxy:
+                    proxy_candidates.append((pooled_proxy, True))
+            proxy_candidates.append((None, False))
+
+            for proxy, should_report in proxy_candidates:
+                try:
+                    status = check_subscription_status(a, proxy=proxy)
+                    if should_report and proxy:
+                        proxy_pool.report_success(proxy)
+                    return status not in ("expired", "invalid", "banned", None)
+                except Exception:
+                    if should_report and proxy:
+                        proxy_pool.report_fail(proxy)
+                    continue
         except Exception:
             return False
+        return False
 
     def _prepare_registration_password(self, password: str | None) -> str | None:
         if password:

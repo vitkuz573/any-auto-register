@@ -11,7 +11,11 @@ from typing import Any, Callable, Optional
 
 from sqlmodel import Session, select, func
 
-from core.account_graph import patch_account_graph
+from core.account_graph import (
+    load_account_graphs,
+    patch_account_graph,
+    recover_lifecycle_status_for_valid_account,
+)
 from core.base_platform import AccountStatus, RegisterConfig
 from core.datetime_utils import format_local_clock, serialize_datetime
 from core.db import AccountModel, TaskEventModel, TaskLog, TaskModel, engine, save_account
@@ -541,11 +545,15 @@ def _run_single_account_check(account_id: int, logger: TaskLogger | None = None)
         model = session.get(AccountModel, account_id)
         if model:
             model.updated_at = _utcnow()
+            current_graph = load_account_graphs(session, [account_id]).get(account_id, {})
             summary_updates = {"checked_at": _utcnow_iso(), "valid": bool(valid)}
+            lifecycle_status = None
+            if valid:
+                lifecycle_status = recover_lifecycle_status_for_valid_account(current_graph)
             patch_account_graph(
                 session,
                 model,
-                lifecycle_status=None if valid else AccountStatus.INVALID.value,
+                lifecycle_status=lifecycle_status,
                 summary_updates=summary_updates,
             )
             session.add(model)
@@ -843,6 +851,7 @@ def _execute_account_check_all_task(payload: dict[str, Any], logger: TaskLogger)
         q = select(AccountModel)
         if platform:
             q = q.where(AccountModel.platform == platform)
+        q = q.order_by(AccountModel.created_at.desc(), AccountModel.id.desc())
         accounts = session.exec(q.limit(limit)).all()
 
     total = len(accounts)
