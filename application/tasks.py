@@ -547,6 +547,8 @@ def _run_single_account_check(account_id: int, logger: TaskLogger | None = None)
             model.updated_at = _utcnow()
             current_graph = load_account_graphs(session, [account_id]).get(account_id, {})
             summary_updates = {"checked_at": _utcnow_iso(), "valid": bool(valid)}
+            if hasattr(plugin, "get_last_check_overview"):
+                summary_updates.update(plugin.get_last_check_overview() or {})
             lifecycle_status = None
             if valid:
                 lifecycle_status = recover_lifecycle_status_for_valid_account(current_graph)

@@ -74,9 +74,12 @@ def check_accounts_validity(
                 model = session.get(AccountModel, acc.id)
                 if model:
                     model.updated_at = _utcnow()
+                    summary_updates = {"checked_at": _utcnow_iso(), "valid": valid}
+                    if hasattr(plugin, "get_last_check_overview"):
+                        summary_updates.update(plugin.get_last_check_overview() or {})
                     patch_account_graph(
                         session, model,
-                        summary_updates={"checked_at": _utcnow_iso(), "valid": valid},
+                        summary_updates=summary_updates,
                     )
                     session.add(model)
                     session.commit()

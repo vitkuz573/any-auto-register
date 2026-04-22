@@ -36,6 +36,9 @@ class LocalSolverCaptcha(BaseCaptcha):
             )
             if res.status_code == 200:
                 data = res.json()
+                if data.get("errorId"):
+                    message = data.get("errorDescription") or data.get("errorCode") or data
+                    raise RuntimeError(f"LocalSolver Turnstile 失败: {message}")
                 status = data.get("status")
                 if status == "ready":
                     token = data.get("solution", {}).get("token")

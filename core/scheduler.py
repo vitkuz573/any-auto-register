@@ -92,10 +92,13 @@ class Scheduler:
                     a = s.get(AccountModel, acc.id)
                     if a:
                         a.updated_at = datetime.now(timezone.utc)
+                        summary_updates = {"checked_at": _utcnow_iso(), "valid": valid}
+                        if hasattr(plugin, "get_last_check_overview"):
+                            summary_updates.update(plugin.get_last_check_overview() or {})
                         patch_account_graph(
                             s,
                             a,
-                            summary_updates={"checked_at": _utcnow_iso(), "valid": valid},
+                            summary_updates=summary_updates,
                         )
                         s.add(a)
                         s.commit()

@@ -130,9 +130,13 @@ def test_chatgpt_check_valid_uses_proxy_pool_before_direct(monkeypatch):
         calls.append(proxy)
         if proxy != "http://127.0.0.1:7890":
             raise RuntimeError("should use proxy first")
-        return "free"
+        return {
+            "status": "free",
+            "source": "backend-api/wham/usage",
+            "usage": {"plan_type": "free"},
+        }
 
-    monkeypatch.setattr(payment, "check_subscription_status", _fake_status)
+    monkeypatch.setattr(payment, "fetch_subscription_status_details", _fake_status)
     monkeypatch.setattr(proxy_pool, "get_next", lambda region="": "http://127.0.0.1:7890")
     monkeypatch.setattr(proxy_pool, "report_success", lambda url: proxy_events.append(("success", url)))
     monkeypatch.setattr(proxy_pool, "report_fail", lambda url: proxy_events.append(("fail", url)))
@@ -157,3 +161,4 @@ def test_chatgpt_check_valid_uses_proxy_pool_before_direct(monkeypatch):
     assert plugin.check_valid(account) is True
     assert calls == ["http://127.0.0.1:7890"]
     assert proxy_events == [("success", "http://127.0.0.1:7890")]
+    assert plugin.get_last_check_overview()["chatgpt_usage"] == {"plan_type": "free"}

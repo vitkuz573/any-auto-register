@@ -56,8 +56,9 @@ class ChatGPTPlatform(BasePlatform):
         self.mailbox = mailbox
 
     def check_valid(self, account: Account) -> bool:
+        self._last_check_overview = {}
         try:
-            from platforms.chatgpt.payment import check_subscription_status
+            from platforms.chatgpt.payment import fetch_subscription_status_details
             from core.proxy_pool import proxy_pool
             class _A: pass
             a = _A()
@@ -80,9 +81,18 @@ class ChatGPTPlatform(BasePlatform):
 
             for proxy, should_report in proxy_candidates:
                 try:
-                    status = check_subscription_status(a, proxy=proxy)
+                    details = fetch_subscription_status_details(a, proxy=proxy)
                     if should_report and proxy:
                         proxy_pool.report_success(proxy)
+                    status = details.get("status")
+                    overview = {
+                        "plan": status,
+                        "plan_name": status,
+                        "check_source": details.get("source"),
+                    }
+                    if isinstance(details.get("usage"), dict):
+                        overview["chatgpt_usage"] = details["usage"]
+                    self._last_check_overview = overview
                     return status not in ("expired", "invalid", "banned", None)
                 except Exception:
                     if should_report and proxy:
@@ -91,6 +101,9 @@ class ChatGPTPlatform(BasePlatform):
         except Exception:
             return False
         return False
+
+    def get_last_check_overview(self) -> dict:
+        return dict(getattr(self, "_last_check_overview", {}) or {})
 
     def _prepare_registration_password(self, password: str | None) -> str | None:
         if password:

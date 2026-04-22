@@ -331,6 +331,11 @@ def check_subscription_status(account: Account, proxy: Optional[str] = None) -> 
     Returns:
         'free' / 'plus' / 'team'
     """
+    return fetch_subscription_status_details(account, proxy=proxy)["status"]
+
+
+def fetch_subscription_status_details(account: Account, proxy: Optional[str] = None) -> dict:
+    """Return normalized subscription status plus raw usage data when available."""
     if not account.access_token:
         raise ValueError("账号缺少 access_token")
 
@@ -350,9 +355,24 @@ def check_subscription_status(account: Account, proxy: Optional[str] = None) -> 
         resp.raise_for_status()
         data = resp.json()
         if isinstance(data, dict):
-            return _subscription_status_from_me(data)
+            usage_data = None
+            try:
+                usage_data = _fetch_usage_data(account, proxy=proxy)
+            except Exception as usage_exc:
+                logger.info("check_subscription_status usage enrichment failed: %s", usage_exc)
+            return {
+                "status": _subscription_status_from_me(data),
+                "source": "backend-api/me",
+                "me": data,
+                "usage": usage_data,
+            }
     except Exception as exc:
         logger.info("check_subscription_status fallback to wham/usage: %s", exc)
 
     data = _fetch_usage_data(account, proxy=proxy)
-    return _subscription_status_from_usage(data)
+    return {
+        "status": _subscription_status_from_usage(data),
+        "source": "backend-api/wham/usage",
+        "me": None,
+        "usage": data,
+    }

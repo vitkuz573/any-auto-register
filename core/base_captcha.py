@@ -67,6 +67,10 @@ def has_captcha_configured(provider_key: str, extra: dict | None = None) -> bool
 def create_captcha_solver(provider_key: str, extra: dict | None = None) -> BaseCaptcha:
     from infrastructure.provider_definitions_repository import ProviderDefinitionsRepository
     from infrastructure.provider_settings_repository import ProviderSettingsRepository
+    from providers.captcha.local_solver import LocalSolverCaptcha
+    from providers.captcha.manual import ManualCaptcha
+    from providers.captcha.twocaptcha import TwoCaptcha
+    from providers.captcha.yescaptcha import YesCaptcha
 
     key = str(provider_key or "").strip().lower()
     if key == "manual":
