@@ -208,28 +208,16 @@ python3 -m uvicorn main:app --port 8000
 
 ### 代理池
 
+| 🌟 推荐代理服务 | 简介说明 |
+| :--- | :--- |
+| <a href="https://www.swiftproxy.net/?ref=lxf746"><img src="assets/swiftproxy.svg" width="130" alt="Swiftproxy"/></a> | **[Swiftproxy](https://www.swiftproxy.net/?ref=lxf746)** — 80M+ 高质量住宅 IP，连接稳定高匿名，动态流量不过期，支持免费测试，完美适配自动化轮询。 |
+| <a href="https://colaproxy.com/?utm_source=lxf746&utm_medium=lxf746&ref=lxf746"><img src="assets/colaproxy.png" width="130" alt="ColaProxy"/></a> | **[ColaProxy](https://colaproxy.com/?utm_source=lxf746&utm_medium=lxf746&ref=lxf746)** — 免费测试 90M+ 海外纯净 IP，单价低至 $0.3/GB，支持住宅 / 移动 / 静态 / 不限量代理，高速轮换 + 多账号环境隔离，降低封禁率。 |
+
 - **静态代理**:代理管理页手动添加,系统按成功率加权轮询,连续失败 5 次自动禁用
 - **API 提取代理**:通过 HTTP API 动态提取代理 IP,适用于大多数代理商
 - **旋转网关代理**:固定入口地址、每次请求自动分配出口 IP,适用于 BrightData / Oxylabs / IPRoyal 等
 
 数据库中启用 `proxy` provider 时,注册会优先尝试动态代理,失败或未配置自动回退到静态池。
-
-> **代理池专属推荐**
-
-<table>
-<tr>
-<td width="220" align="center">
-<a href="https://colaproxy.com/?utm_source=lxf746&utm_medium=lxf746&ref=lxf746" target="_blank">
-<img src="assets/colaproxy.png" alt="ColaProxy" width="180" />
-</a>
-</td>
-<td>
-<b><a href="https://colaproxy.com/?utm_source=lxf746&utm_medium=lxf746&ref=lxf746">ColaProxy</a></b> — 免费测试 90M+ 海外纯净 IP,单价低至 $0.3/GB,支持住宅 / 移动 / 静态 / 不限量代理。<br/>
-高速轮换 + 多账号环境隔离,有效降低封禁率,提升注册与自动化成功率。<br/>
-<a href="https://colaproxy.com/?utm_source=lxf746&utm_medium=lxf746&ref=lxf746"><b>免费试用 →</b></a>
-</td>
-</tr>
-</table>
 
 ### 接码服务
 
