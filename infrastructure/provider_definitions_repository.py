@@ -67,6 +67,20 @@ _BUILTIN_DEFINITIONS: list[dict] = [
     },
     {
         "provider_type": "mailbox",
+        "provider_key": "mailtm_api",
+        "label": "Mail.tm",
+        "description": "免费临时邮箱，无需配置，自动生成",
+        "driver_type": "mailtm_api",
+        "default_auth_mode": "",
+        "enabled": True,
+        "category": "free",
+        "auth_modes": [],
+        "fields": [
+            {"key": "mailtm_api_url", "label": "API 地址（可选）", "placeholder": "https://api.mail.tm", "category": "connection"},
+        ],
+    },
+    {
+        "provider_type": "mailbox",
         "provider_key": "tempmail_web_api",
         "label": "Temp-Mail.org",
         "description": "免费临时邮箱，需要浏览器环境（Camoufox）",

@@ -491,6 +491,7 @@ _LEGACY_PROVIDER_KEY_MAP: dict[tuple[str, str], str] = {
     ("mailbox", "cfworker"): "cfworker_admin_api",
     ("mailbox", "testmail"): "testmail_api",
     ("mailbox", "laoudo"): "laoudo_api",
+    ("mailbox", "mailtm"): "mailtm_api",
     # sms
     ("sms", "sms_activate"): "sms_activate_api",
     ("sms", "herosms"): "herosms_api",
