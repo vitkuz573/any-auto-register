@@ -148,7 +148,7 @@ class TurnstileAPIServer:
             await init_db()
             await self._initialize_browser()
             
-            # Запускаем периодическую очистку старых результатов
+            # Start periodic cleanup of old results
             asyncio.create_task(self._periodic_cleanup())
             
         except Exception as e:
@@ -184,7 +184,7 @@ class TurnstileAPIServer:
                     useragent = self.useragent
                     sec_ch_ua = getattr(self, 'sec_ch_ua', '')
             else:
-                # Для camoufox и других браузеров используем значения по умолчанию
+                # For camoufox and other browsers use default values
                 browser = self.browser_type
                 version = 'custom'
                 useragent = self.useragent
@@ -267,7 +267,7 @@ class TurnstileAPIServer:
 
 
     async def _optimized_route_handler(self, route):
-        """Оптимизированный обработчик маршрутов для экономии ресурсов."""
+        """Optimized route handler to save resources."""
         url = route.request.url
         resource_type = route.request.resource_type
 
@@ -302,15 +302,15 @@ class TurnstileAPIServer:
             await route.continue_()
 
     async def _block_rendering(self, page):
-        """Блокировка рендеринга для экономии ресурсов"""
+        """Block rendering to save resources"""
         await page.route("**/*", self._optimized_route_handler)
 
     async def _unblock_rendering(self, page):
-        """Разблокировка рендеринга"""
+        """Unblock rendering"""
         await page.unroute("**/*", self._optimized_route_handler)
 
     async def _find_turnstile_elements(self, page, index: int):
-        """Умная проверка всех возможных Turnstile элементов"""
+        """Smart check for all possible Turnstile elements"""
         selectors = [
             '.cf-turnstile',
             '[data-sitekey]',
@@ -323,11 +323,11 @@ class TurnstileAPIServer:
         elements = []
         for selector in selectors:
             try:
-                # Безопасная проверка count()
+                # Safe count() check
                 try:
                     count = await page.locator(selector).count()
                 except Exception:
-                    # Если count() дает ошибку, пропускаем этот селектор
+                    # If count() throws an error, skip this selector
                     continue
                     
                 if count > 0:
@@ -342,9 +342,9 @@ class TurnstileAPIServer:
         return elements
 
     async def _find_and_click_checkbox(self, page, index: int):
-        """Найти и кликнуть по чекбоксу Turnstile CAPTCHA внутри iframe"""
+        """Find and click the Turnstile CAPTCHA checkbox inside iframe"""
         try:
-            # Пробуем разные селекторы iframe с защитой от ошибок
+            # Try different iframe selectors with error protection
             iframe_selectors = [
                 'iframe[src*="challenges.cloudflare.com"]',
                 'iframe[src*="turnstile"]',
@@ -355,7 +355,7 @@ class TurnstileAPIServer:
             for selector in iframe_selectors:
                 try:
                     test_locator = page.locator(selector).first
-                    # Безопасная проверка count для iframe
+                    # Safe count check for iframe
                     try:
                         iframe_count = await test_locator.count()
                     except Exception:
@@ -373,12 +373,12 @@ class TurnstileAPIServer:
             
             if iframe_locator:
                 try:
-                    # Получаем frame из iframe
+                    # Get frame from iframe
                     iframe_element = await iframe_locator.element_handle()
                     frame = await iframe_element.content_frame()
                     
                     if frame:
-                        # Ищем чекбокс внутри iframe
+                        # Look for checkbox inside iframe
                         checkbox_selectors = [
                             'input[type="checkbox"]',
                             '.cb-lb input[type="checkbox"]',
@@ -387,16 +387,16 @@ class TurnstileAPIServer:
                         
                         for selector in checkbox_selectors:
                             try:
-                                # Полностью избегаем locator.count() в iframe - используем альтернативный подход
+                                # Completely avoid locator.count() in iframe - use alternative approach
                                 try:
-                                    # Пробуем кликнуть напрямую без count проверки
+                                    # Try direct click without count check
                                     checkbox = frame.locator(selector).first
                                     await checkbox.click(timeout=2000)
                                     if self.debug:
                                         logger.debug(f"Browser {index}: Successfully clicked checkbox in iframe with selector '{selector}'")
                                     return True
                                 except Exception as click_e:
-                                    # Если прямой клик не сработал, записываем в debug но не падаем
+                                    # If direct click didn't work, log to debug but don't crash
                                     if self.debug:
                                         logger.debug(f"Browser {index}: Direct checkbox click failed for '{selector}': {str(click_e)}")
                                     continue
@@ -405,7 +405,7 @@ class TurnstileAPIServer:
                                     logger.debug(f"Browser {index}: Iframe checkbox selector '{selector}' failed: {str(e)}")
                                 continue
                     
-                        # Если нашли iframe, но не смогли кликнуть чекбокс, пробуем клик по iframe
+                        # If iframe found but checkbox click failed, try clicking iframe directly
                         try:
                             if self.debug:
                                 logger.debug(f"Browser {index}: Trying to click iframe directly as fallback")
@@ -439,7 +439,7 @@ class TurnstileAPIServer:
         for strategy_name, strategy_func in strategies:
             try:
                 result = await strategy_func()
-                if result is True or result is None:  # None означает успех для большинства стратегий
+                if result is True or result is None:  # None means success for most strategies
                     if self.debug:
                         logger.debug(f"Browser {index}: Click strategy '{strategy_name}' succeeded")
                     return True
@@ -451,14 +451,14 @@ class TurnstileAPIServer:
         return False
 
     async def _safe_click(self, page, selector: str, index: int):
-        """Полностью безопасный клик с максимальной защитой от ошибок"""
+        """Fully safe click with maximum error protection"""
         try:
-            # Пробуем кликнуть напрямую без count() проверки
+            # Try direct click without count() check
             locator = page.locator(selector).first
             await locator.click(timeout=1000)
             return True
         except Exception as e:
-            # Логируем ошибку только в debug режиме
+            # Log error only in debug mode
             if self.debug and "Can't query n-th element" not in str(e):
                 logger.debug(f"Browser {index}: Safe click failed for '{selector}': {str(e)}")
             return False
@@ -809,7 +809,7 @@ class TurnstileAPIServer:
                 if self.debug:
                     logger.debug(f"Browser {index}: Turnstile not found naturally, will inject our own")
             
-            # Сразу инъектируем виджет Turnstile на целевой сайт
+            # Immediately inject Turnstile widget into target site
             if self.debug:
                 logger.debug(f"Browser {index}: Injecting Turnstile widget directly into target site")
             
@@ -833,7 +833,7 @@ class TurnstileAPIServer:
                 else:
                     logger.debug(f"Browser {index}: Injected new turnstile widget")
             
-            # Ждем время для загрузки и рендеринга виджета
+            # Wait for widget loading and rendering
             await asyncio.sleep(3)
 
             locator = page.locator('input[name="cf-turnstile-response"]')
@@ -843,7 +843,7 @@ class TurnstileAPIServer:
 
             for attempt in range(max_attempts):
                 try:
-                    # Безопасная проверка количества элементов с токеном
+                    # Safe check of token element count
                     try:
                         count = await locator.count()
                     except Exception as e:
@@ -860,7 +860,7 @@ class TurnstileAPIServer:
                             iframe_count = await page.locator('iframe[src*="turnstile"], iframe[src*="challenges.cloudflare"]').count()
                             logger.debug(f"Browser {index}: Page has {widget_count} turnstile widgets and {iframe_count} iframes")
                     elif count == 1:
-                        # Если только один элемент, проверяем его токен
+                        # If only one element, check its token
                         try:
                             token = await locator.input_value(timeout=500)
                             if token:
@@ -872,7 +872,7 @@ class TurnstileAPIServer:
                             if self.debug:
                                 logger.debug(f"Browser {index}: Single token element check failed: {str(e)}")
                     else:
-                        # Если несколько элементов, проверяем все по очереди
+                        # If multiple elements, check them one by one
                         if self.debug:
                             logger.debug(f"Browser {index}: Found {count} token elements, checking all")
 
@@ -897,7 +897,7 @@ class TurnstileAPIServer:
                         elif not click_success and self.debug:
                             logger.debug(f"Browser {index}: All click strategies failed on attempt {attempt + 1} (click #{click_count}/{max_clicks})")
 
-                    # Адаптивное ожидание
+                    # Adaptive wait
                     wait_time = min(0.5 + (attempt * 0.05), 2.0)
                     await asyncio.sleep(wait_time)
 

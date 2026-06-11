@@ -35,5 +35,5 @@ def execute_action(platform: str, account_id: int, action_id: str, body: ActionR
         )
     )
     if not task:
-        raise HTTPException(400, "任务创建失败")
+        raise HTTPException(400, "Task creation failed")
     return task

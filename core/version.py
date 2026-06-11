@@ -1,6 +1,6 @@
-"""应用版本号。
+"""Application version.
 
-CI 在构建 release 时会用 `__version__ = "<tag>"` 覆盖此文件，
-本地开发时这里是 "dev" 占位。
+CI overwrites this file with `__version__ = "<tag>"` during release builds.
+"dev" is used as a placeholder during local development.
 """
 __version__ = "dev"

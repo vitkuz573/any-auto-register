@@ -1,11 +1,11 @@
-"""Cursor 浏览器注册流程（Camoufox）。
+"""Cursor browser registration flow (Camoufox).
 
-实际流程：
+Actual flow:
   1. https://authenticator.cursor.sh/sign-up
-  2. 填写 FirstName / LastName / Email（同一页面）
-  3. 提交 → Cloudflare Turnstile 验证（自动/注入）
-  4. 收取邮箱验证码（6位）→ 输入
-  5. 跳转 cursor.com → 获取 WorkosCursorSessionToken
+  2. Fill FirstName / LastName / Email (same page)
+  3. Submit → Cloudflare Turnstile verification (auto/inject)
+  4. Receive email OTP (6 digits) → enter
+  5. Jump to cursor.com → get WorkosCursorSessionToken
 """
 import random, string, time, uuid
 from typing import Callable, Optional
@@ -48,12 +48,12 @@ def _get_turnstile_sitekey(page) -> str:
 
 
 def _inject_turnstile(page, token: str) -> bool:
-    """注入 Turnstile token，兼容 explicit 渲染模式（Cursor 使用此模式）。"""
+    """Inject Turnstile token, compatible with explicit rendering mode (used by Cursor)."""
     safe = token.replace("\\", "\\\\").replace("'", "\\'")
     script = f"""(function() {{
         const token = '{safe}';
 
-        // 1. override window.turnstile API（explicit 模式下服务端会调用 getResponse）
+        // 1. override window.turnstile API (server calls getResponse in explicit mode)
         if (window.turnstile) {{
             const orig = window.turnstile;
             window.turnstile = new Proxy(orig, {{
@@ -65,7 +65,7 @@ def _inject_turnstile(page, token: str) -> bool:
             }});
         }}
 
-        // 2. 触发所有已注册的 callback
+        // 2. Trigger all registered callbacks
         const fns = [
             window._turnstileTokenCallback,
             window.turnstileCallback,
@@ -74,7 +74,7 @@ def _inject_turnstile(page, token: str) -> bool:
         ];
         fns.forEach(fn => {{ if (typeof fn === 'function') {{ try {{ fn(token); }} catch(e) {{}} }} }});
 
-        // 3. 注入 hidden input（兼容 form submit 模式）
+        // 3. Inject hidden input (compatible with form submit mode)
         const names = ['captcha', 'cf-turnstile-response'];
         const form = document.querySelector('form') || document.body;
         names.forEach(name => {{
@@ -85,7 +85,7 @@ def _inject_turnstile(page, token: str) -> bool:
             f.dispatchEvent(new Event('change', {{bubbles: true}}));
         }});
 
-        // 4. 尝试直接触发 Turnstile 内部 callback（通过 iframe postMessage）
+        // 4. Try to directly trigger Turnstile internal callback (via iframe postMessage)
         try {{
             document.querySelectorAll('iframe').forEach(iframe => {{
                 if (iframe.src && iframe.src.includes('cloudflare.com')) {{
@@ -103,7 +103,7 @@ def _inject_turnstile(page, token: str) -> bool:
 
 
 def _click_continue(page) -> bool:
-    """尝试点击 Continue/Next/Sign up 按钮，兜底用 Enter。"""
+    """Try to click Continue/Next/Sign up button, fallback to Enter."""
     for sel in [
         'button[data-action-button-primary="true"]',
         'button[type="submit"]:not([aria-hidden="true"])',
@@ -141,14 +141,14 @@ def _wait_for_token(page, timeout: int = 120) -> str:
 
 
 def _is_cf_full_block(page) -> bool:
-    """检测是否被 CF 全页拦截（区别于表单内嵌 Turnstile widget）。
+    """Detect if CF full-page block is present (different from inline Turnstile widget).
     
-    全页拦截特征：页面只有 CF 挑战，没有正常的表单内容。
-    内嵌 Turnstile：页面表单正常显示，只是其中有 CF iframe。
+    Full-page block characteristics: page only has CF challenge, no normal form content.
+    Inline Turnstile: page form displays normally, just has CF iframe inside.
     """
     try:
         content = page.content().lower()
-        # 全页拦截的关键词（不含 challenges.cloudflare.com，因为那是 widget 的 script）
+        # Keywords for full-page block (excluding challenges.cloudflare.com, as that's widget script)
         full_block_signals = [
             "just a moment",
             "checking your browser",
@@ -159,7 +159,7 @@ def _is_cf_full_block(page) -> bool:
             "ray id",
         ]
         if any(kw in content for kw in full_block_signals):
-            # 同时确认没有正常表单（有表单=只是内嵌 widget，不是全页拦截）
+            # Also confirm no normal form is present (form present = inline widget only, not full-page block)
             has_form = bool(page.query_selector('input[name="email"], input[name="firstName"], input[name="otp"], input[name="code"]'))
             if not has_form:
                 return True
@@ -169,11 +169,11 @@ def _is_cf_full_block(page) -> bool:
 
 
 def _wait_cf_full_block_clear(page, timeout: int = 120, log_fn=print) -> None:
-    """等待 CF 全页拦截消失，并主动点击 Interstitial Turnstile checkbox。
+    """Wait for CF full-page block to clear, and actively click Interstitial Turnstile checkbox.
     
-    CF 全页拦截分两种：
-    1. Interactive Turnstile：显示 checkbox，需要点击
-    2. Managed Challenge： no-checkbox 被动验证，显示圆圈/加载中，就等
+    CF full-page block has two types:
+    1. Interactive Turnstile: shows checkbox, needs click
+    2. Managed Challenge: no-checkbox passive verification, shows circle/loading, just wait
     """
     deadline = time.time() + timeout
     warned = False
@@ -182,9 +182,9 @@ def _wait_cf_full_block_clear(page, timeout: int = 120, log_fn=print) -> None:
         if not _is_cf_full_block(page):
             break
         if not warned:
-            log_fn("检测到 Cloudflare 全页拦截，尝试点击验证 checkbox...")            
+            log_fn("Detected Cloudflare full-page block, trying to click verification checkbox...")            
             warned = True
-        # 模拟人类鼠标移动（CF 被动检测会观察鼠标行为）
+        # Simulate human mouse movement (CF passive detection observes mouse behavior)
         try:
             w = page.viewport_size or {"width": 1280, "height": 720}
             for _ in range(3):
@@ -195,7 +195,7 @@ def _wait_cf_full_block_clear(page, timeout: int = 120, log_fn=print) -> None:
                 time.sleep(random.uniform(0.1, 0.3))
         except Exception:
             pass
-        # 尝试找 CF interstitial Turnstile iframe 并点击
+        # Try to find CF interstitial Turnstile iframe and click
         if not clicked:
             try:
                 for frame in page.frames:
@@ -205,9 +205,9 @@ def _wait_cf_full_block_clear(page, timeout: int = 120, log_fn=print) -> None:
                         if box:
                             cx = box["x"] + 24
                             cy = box["y"] + box["height"] / 2
-                            # 模拟人类行为：先等几秒"看页面"，再缓慢移动到目标
+                            # Simulate human behavior: wait a few seconds to "view page", then slowly move to target
                             time.sleep(random.uniform(1.5, 3.0))
-                            # 从当前位置平滑移动到 checkbox（分多步）
+                            # Smoothly move from current position to checkbox (in multiple steps)
                             w = page.viewport_size or {"width": 1280, "height": 720}
                             cur_x = random.randint(200, w["width"] - 200)
                             cur_y = random.randint(200, w["height"] - 200)
@@ -215,33 +215,33 @@ def _wait_cf_full_block_clear(page, timeout: int = 120, log_fn=print) -> None:
                             steps = random.randint(8, 15)
                             for i in range(steps):
                                 t = (i + 1) / steps
-                                # 贝塞尔曲线平滑插值
+                                # Bezier curve smooth interpolation
                                 mid_x = cur_x + (cx - cur_x) * t + random.randint(-15, 15)
                                 mid_y = cur_y + (cy - cur_y) * t + random.randint(-8, 8)
                                 page.mouse.move(mid_x, mid_y)
                                 time.sleep(random.uniform(0.02, 0.07))
-                            # 最终移到目标并点击
+                            # Finally move to target and click
                             page.mouse.move(cx, cy)
                             time.sleep(random.uniform(0.1, 0.3))
                             page.mouse.down()
                             time.sleep(random.uniform(0.08, 0.15))
                             page.mouse.up()
-                            log_fn(f"✅ 点击 Interstitial checkbox 坐标: ({cx:.0f}, {cy:.0f})")
+                            log_fn(f"✅ Clicked Interstitial checkbox at: ({cx:.0f}, {cy:.0f})")
                             clicked = True
                             time.sleep(3)
                             break
             except Exception:
                 pass
             if not clicked:
-                # iframe 还没加载，稍等再试
+                # iframe not loaded yet, wait and retry
                 time.sleep(1)
         else:
-            # 已点击，等待 CF 被动验证完成（Managed Challenge 可能需要较長时间）
+            # Already clicked, wait for CF passive verification to complete (Managed Challenge may take longer)
             time.sleep(2)
 
 
 def _has_turnstile_iframe(page) -> bool:
-    """检测页面中是否有 Turnstile iframe（包括内嵌 widget）。"""
+    """Detect if Turnstile iframe exists on page (including inline widget)."""
     try:
         for frame in page.frames:
             if "challenges.cloudflare.com" in frame.url:
@@ -260,33 +260,31 @@ def _has_turnstile_iframe(page) -> bool:
         return False
 
 def _is_turnstile_modal_visible(page) -> bool:
-    """检测 Turnstile 挑战是否可见（使用 body 文字，因为 iframe 延迟加载）。"""
+    """Detect if Turnstile challenge is visible (using body text, because iframe loads lazily)."""
     try:
         content = page.content().lower()
         signals = [
             "confirm you are human",
-            "确认您是真人",
             "we need to confirm you are human",
-            "需要确认您是真人",
         ]
         if any(s in content for s in signals):
             return True
-        # 也检查 iframe（有些环境下 iframe 会有 src）
+        # Also check iframe (in some environments iframe may have src)
         return _has_turnstile_iframe(page)
     except Exception:
         return False
 
 
 def _click_turnstile_in_iframe(page, log_fn=print) -> bool:
-    """在注册 Camoufox 浏览器里直接找到 Turnstile iframe 并点击 checkbox。
+    """Directly find Turnstile iframe in Camoufox browser and click checkbox.
     
-    Turnstile iframe 内部使用 closed Shadow DOM，JS querySelector 无法访问。
-    改用 bounding box 坐标点击：checkbox 在 iframe 左侧约 1/4 处。
-    返回 True 表示点击了（不代表 Turnstile 已通过）。
+    Turnstile iframe uses closed Shadow DOM internally, JS querySelector cannot access it.
+    Use bounding box coordinate click instead: checkbox is at about 1/4 from left of iframe.
+    Returns True if clicked (does not mean Turnstile has passed).
     """
-    # 等待 iframe 的 frame 出现在 page.frames 列表中
+    # Wait for iframe's frame to appear in page.frames list
     deadline = time.time() + 15
-    cf_frame_obj = None  # playwright Frame 对象
+    cf_frame_obj = None  # playwright Frame object
     while time.time() < deadline:
         for frame in page.frames:
             if "challenges.cloudflare.com" in frame.url:
@@ -297,12 +295,12 @@ def _click_turnstile_in_iframe(page, log_fn=print) -> bool:
         time.sleep(0.5)
 
     if not cf_frame_obj:
-        log_fn("未找到 Cloudflare iframe frame，跳过直接点击")
+        log_fn("Cloudflare iframe frame not found, skipping direct click")
         return False
 
-    log_fn(f"找到 Turnstile frame: {cf_frame_obj.url[:80]}...")
+    log_fn(f"Found Turnstile frame: {cf_frame_obj.url[:80]}...")
 
-    # 找到 iframe DOM 元素，获取 bounding box
+    # Find iframe DOM element, get bounding box
     iframe_el = None
     for el in page.query_selector_all("iframe"):
         try:
@@ -314,7 +312,7 @@ def _click_turnstile_in_iframe(page, log_fn=print) -> bool:
             continue
 
     if not iframe_el:
-        # src 可能为空（动态设置），用 frame owner element
+        # src may be empty (dynamically set), use frame owner element
         try:
             iframe_el = cf_frame_obj.frame_element()
         except Exception:
@@ -322,7 +320,7 @@ def _click_turnstile_in_iframe(page, log_fn=print) -> bool:
 
     if iframe_el:
         try:
-            # 等待 bounding box 有效（iframe 渲染需要时间，height=0 时不能点击）
+            # Wait for bounding box to be valid (iframe rendering takes time, can't click when height=0)
             box = None
             for _ in range(10):
                 b = iframe_el.bounding_box()
@@ -331,18 +329,18 @@ def _click_turnstile_in_iframe(page, log_fn=print) -> bool:
                     break
                 time.sleep(1)
             if box:
-                # checkbox 在 iframe 左侧，大约 x=24, y=center
+                # checkbox is on the left side of iframe, approx x=24, y=center
                 cx = box["x"] + 24
                 cy = box["y"] + box["height"] / 2
-                # 模拟人类点击：移动到目标再按下/松开
+                # Simulate human click: move to target then press/release
                 page.mouse.move(cx + random.randint(-5, 5), cy + random.randint(-3, 3))
                 time.sleep(random.uniform(0.1, 0.25))
                 page.mouse.down()
                 time.sleep(random.uniform(0.08, 0.15))
                 page.mouse.up()
-                log_fn(f"✅ 点击 Turnstile checkbox 坐标: ({cx:.0f}, {cy:.0f})")
+                log_fn(f"✅ Clicked Turnstile checkbox at: ({cx:.0f}, {cy:.0f})")
                 time.sleep(1.5)
-                # 如果还没通过，再试一次偏右
+                # If not passed yet, try once more slightly to the right
                 if _is_turnstile_modal_visible(page):
                     page.mouse.move(cx + 12, cy)
                     time.sleep(0.1)
@@ -352,30 +350,30 @@ def _click_turnstile_in_iframe(page, log_fn=print) -> bool:
                     time.sleep(1)
                 return True
             else:
-                log_fn("bounding box 无效（height=0），跳过点击")
+                log_fn("Bounding box invalid (height=0), skipping click")
         except Exception as e:
-            log_fn(f"bounding box 点击失败: {e}")
+            log_fn(f"Bounding box click failed: {e}")
 
-    # 兜底：用 Playwright frame 内坐标点击（相对于 frame）
+    # Fallback: use Playwright frame coordinate click (relative to frame)
     try:
-        log_fn("尝试 frame 内坐标点击...")
+        log_fn("Trying frame coordinate click...")
         cf_frame_obj.locator("body").click(position={"x": 24, "y": 32}, timeout=5000)
-        log_fn("✅ frame 内坐标点击成功")
+        log_fn("✅ Frame coordinate click succeeded")
         return True
     except Exception as e:
-        log_fn(f"frame 内点击失败: {e}")
+        log_fn(f"Frame coordinate click failed: {e}")
 
-    log_fn("所有点击方式均失败")
+    log_fn("All click methods failed")
     return False
 
 
 def _handle_turnstile(page, log_fn=print, solve_fn=None, wait_secs: int = 12) -> bool:
-    """通用 Turnstile 处理：检测到 Turnstile 后点击 checkbox。
+    """Generic Turnstile handling: detect Turnstile then click checkbox.
     
-    可在表单提交后、密码提交后等任意阶段调用。
-    返回 True 表示检测到并处理了 Turnstile。
+    Can be called at any stage after form submission, password submission, etc.
+    Returns True if Turnstile was detected and handled.
     """
-    # 检测 Turnstile 是否出现（最多等 wait_secs 秒）
+    # Detect if Turnstile appears (wait up to wait_secs seconds)
     deadline = time.time() + wait_secs
     has_turnstile = False
     while time.time() < deadline:
@@ -383,27 +381,27 @@ def _handle_turnstile(page, log_fn=print, solve_fn=None, wait_secs: int = 12) ->
             has_turnstile = True
             break
         if page.query_selector('input[name="otp"], input[name="code"], input[type="password"]'):
-            # 已到达下一步，跳过
+            # Already reached next step, skip
             return False
         time.sleep(1)
 
     if not has_turnstile:
         return False
 
-    log_fn("检测到 Turnstile，尝试直接点击 iframe checkbox...")
+    log_fn("Detected Turnstile, trying direct iframe checkbox click...")
     solved = _click_turnstile_in_iframe(page, log_fn)
     if not solved:
-        # 尝试 token solver 作为备选
+        # Try token solver as fallback
         if solve_fn:
             token = solve_fn(page.url, _get_turnstile_sitekey(page))
             if token:
-                log_fn(f"注入 Turnstile token ({token[:40]}...)")
+                log_fn(f"Injected Turnstile token ({token[:40]}...)")
                 _inject_turnstile(page, token)
                 time.sleep(2)
                 _click_continue(page)
                 time.sleep(3)
                 return True
-        log_fn("⚠️ 自动解题失败，等待手动通过（最多90秒）...")
+        log_fn("⚠️ Auto-solving failed, waiting for manual pass (max 90s)...")
         dl = time.time() + 90
         while time.time() < dl:
             if not _is_turnstile_modal_visible(page):
@@ -412,9 +410,9 @@ def _handle_turnstile(page, log_fn=print, solve_fn=None, wait_secs: int = 12) ->
     else:
         time.sleep(3)
         if _is_turnstile_modal_visible(page):
-            log_fn("Turnstile 仍在显示，等待自动通过...")
+            log_fn("Turnstile still visible, waiting for auto pass...")
             time.sleep(5)
-        # Turnstile 通过后如果还没下一步，尝试点 Continue
+        # If next step not reached after Turnstile passes, try clicking Continue
         if not page.query_selector('input[name="otp"], input[name="code"]'):
             _click_continue(page)
             time.sleep(3)
@@ -422,7 +420,7 @@ def _handle_turnstile(page, log_fn=print, solve_fn=None, wait_secs: int = 12) ->
 
 
 class CursorBrowserRegister:
-    """Cursor 浏览器填表注册（Camoufox + mailbox OTP）。"""
+    """Cursor browser form registration (Camoufox + mailbox OTP)."""
 
     def __init__(
         self,
@@ -442,18 +440,18 @@ class CursorBrowserRegister:
         self.log = log_fn
 
     def _solve_turnstile(self, url: str, sitekey: str) -> Optional[str]:
-        """调用 Captcha Solver 解决 Turnstile，返回 token 或 None。"""
+        """Call Captcha Solver to solve Turnstile, return token or None."""
         if not self.captcha:
-            self.log("未配置 Captcha Solver，跳过自动解题")
+            self.log("Captcha Solver not configured, skipping auto-solving")
             return None
         try:
-            self.log(f"调用 Captcha Solver 解题 ({sitekey[:20]}...)...")
+            self.log(f"Calling Captcha Solver ({sitekey[:20]}...)...")
             token = self.captcha.solve_turnstile(url, sitekey or TURNSTILE_SITEKEY)
             if token:
-                self.log(f"✅ Solver 返回 token: {token[:50]}...")
+                self.log(f"✅ Solver returned token: {token[:50]}...")
             return token
         except Exception as e:
-            self.log(f"⚠️ Captcha Solver 失败: {e}")
+            self.log(f"⚠️ Captcha Solver failed: {e}")
             return None
 
     def run(self, email: str, password: str = "") -> dict:
@@ -468,11 +466,11 @@ class CursorBrowserRegister:
         with Camoufox(**launch_opts) as browser:
             page = browser.new_page()
 
-            # 注入 MouseEvent screenX/screenY patcher
-            # CF Turnstile 会检测 CDP 触发的 MouseEvent.screenX == clientX（Chrome bug）
-            # 即使在 Firefox/Camoufox 中，Playwright 内部鼠标事件也可能有相同问题
-            # 通过 add_init_script 在每个页面加载前注入覆盖，欺骗 Turnstile 的检测
-            # 来源: https://github.com/Xewdy444/CDP-bug-MouseEvent-.screenX-.screenY-patcher
+            # Inject MouseEvent screenX/screenY patcher
+            # CF Turnstile detects CDP-triggered MouseEvent.screenX == clientX (Chrome bug)
+            # Even in Firefox/Camoufox, Playwright internal mouse events may have the same issue
+            # Inject override via add_init_script before every page load to bypass Turnstile detection
+            # Source: https://github.com/Xewdy444/CDP-bug-MouseEvent-.screenX-.screenY-patcher
             page.add_init_script("""
 (function() {
     var screenX = Math.floor(Math.random() * (1200 - 800 + 1)) + 800;
@@ -485,7 +483,7 @@ class CursorBrowserRegister:
         get: function() { return this.clientY + screenY; },
         configurable: true
     });
-    // 同时 patch PointerEvent（CF 也检测这个）
+    // Also patch PointerEvent (CF checks this too)
     Object.defineProperty(PointerEvent.prototype, 'screenX', {
         get: function() { return this.clientX + screenX; },
         configurable: true
@@ -497,9 +495,9 @@ class CursorBrowserRegister:
 })();
 """)
 
-            self.log("打开 Cursor 注册页")
-            # 必须带 state(含随机 nonce)访问，WorkOS 才会生成 authorization_session_id
-            # 没有 authorization_session_id，form POST 到 /user_management/initiate_login 会 404
+            self.log("Opening Cursor registration page")
+            # Must visit with state (containing random nonce) for WorkOS to generate authorization_session_id
+            # Without authorization_session_id, form POST to /user_management/initiate_login will 404
             import json, urllib.parse as _up
             _nonce = str(uuid.uuid4())
             _state = _up.quote(json.dumps({"returnTo": "/dashboard", "nonce": _nonce}))
@@ -512,25 +510,25 @@ class CursorBrowserRegister:
             )
             page.goto(_signup_url, wait_until="domcontentloaded", timeout=30000)
 
-            # 仅等待真正的 CF 全页拦截（不会被内嵌 Turnstile widget 误触发）
-            _wait_cf_full_block_clear(page, log_fn=self.log)  # 默认 120s
-            # CF 通过后等待页面完全加载（CF 通过会触发重定向）
+            # Only wait for actual CF full-page block (not triggered by inline Turnstile widget)
+            _wait_cf_full_block_clear(page, log_fn=self.log)  # default 120s
+            # Wait for page to fully load after CF passes (CF pass triggers redirect)
             try:
                 page.wait_for_load_state("domcontentloaded", timeout=15000)
             except Exception:
                 pass
 
-            # 等待注册表单出现
-            self.log("等待注册表单...")
+            # Wait for registration form to appear
+            self.log("Waiting for registration form...")
             try:
                 page.wait_for_selector(
                     'input[name="firstName"], input[name="first_name"], input[name="email"]',
-                    timeout=60000,  # 60s - CF Managed Challenge 可能需要较长时间
+                    timeout=60000,  # 60s - CF Managed Challenge may take longer
                 )
             except Exception:
-                raise RuntimeError(f"Cursor 注册页未加载表单: {page.url}")
+                raise RuntimeError(f"Cursor registration page failed to load form: {page.url}")
 
-            # 填 FirstName / LastName
+            # Fill FirstName / LastName
             for sel, val in [
                 ('input[name="firstName"]', first),
                 ('input[name="first_name"]', first),
@@ -542,27 +540,27 @@ class CursorBrowserRegister:
                     el.fill(val)
                     time.sleep(0.3)
 
-            # 填邮箱
+            # Fill email
             email_sel = 'input[name="email"]'
             try:
                 page.wait_for_selector(email_sel, timeout=5000)
             except Exception:
-                raise RuntimeError("未找到邮箱输入框")
-            self.log(f"填写邮箱: {email}")
+                raise RuntimeError("Email input not found")
+            self.log(f"Filling email: {email}")
             page.fill(email_sel, email)
             time.sleep(0.5)
 
-            # 点 Continue 提交表单
-            self.log("点击 Continue")
+            # Click Continue to submit form
+            self.log("Clicking Continue")
             clicked = _click_continue(page)
             if not clicked:
-                self.log("未找到按钮，使用 Enter 提交")
+                self.log("Button not found, submitting with Enter")
                 page.keyboard.press("Enter")
 
-            # --- Turnstile 处理 ---
-            # 策略：在注册 Camoufox 浏览器里直接点击 iframe 内的 checkbox
-            # 外部 Solver 无效（它自己开浏览器，但不会提交表单，看不到 Turnstile）
-            self.log("等待 Turnstile 验证...")
+            # --- Turnstile handling ---
+            # Strategy: directly click iframe checkbox in Camoufox browser
+            # External Solver is useless (it opens its own browser but won't submit form, won't see Turnstile)
+            self.log("Waiting for Turnstile verification...")
             turnstile_deadline = time.time() + 15
             has_turnstile = False
             while time.time() < turnstile_deadline:
@@ -570,23 +568,23 @@ class CursorBrowserRegister:
                     has_turnstile = True
                     break
                 if page.query_selector('input[name="otp"], input[name="code"]'):
-                    self.log("已直接跳转到验证码页，跳过 Turnstile")
+                    self.log("Already jumped to OTP page, skipping Turnstile")
                     break
                 time.sleep(1)
 
             if has_turnstile:
-                self.log("检测到 Turnstile，尝试直接点击 iframe checkbox...")
+                self.log("Detected Turnstile, trying direct iframe checkbox click...")
                 solved = _click_turnstile_in_iframe(page, self.log)
                 if not solved:
                     token = self._solve_turnstile(page.url, _get_turnstile_sitekey(page))
                     if token:
-                        self.log(f"注入 Turnstile token ({token[:40]}...)")
+                        self.log(f"Injected Turnstile token ({token[:40]}...)")
                         _inject_turnstile(page, token)
                         time.sleep(2)
                         _click_continue(page)
                         time.sleep(3)
                     else:
-                        self.log("⚠️ 自动解题失败，等待手动通过（最多90秒）...")
+                        self.log("⚠️ Auto-solving failed, waiting for manual pass (max 90s)...")
                         dl = time.time() + 90
                         while time.time() < dl:
                             if not _is_turnstile_modal_visible(page):
@@ -595,13 +593,13 @@ class CursorBrowserRegister:
                                 break
                             time.sleep(2)
                 else:
-                    # 点击成功后等待 Turnstile 处理完成
+                    # Wait for Turnstile processing after click
                     time.sleep(3)
                     if _is_turnstile_modal_visible(page):
-                        self.log("Turnstile 仍在显示，等待自动通过...")
+                        self.log("Turnstile still visible, waiting for auto pass...")
                         time.sleep(5)
 
-            # --- 处理密码设置页（Turnstile 通过后 Cursor 要求设置密码）---
+            # --- Handle password setup page (Cursor requires password after Turnstile passes) ---
             try:
                 page.wait_for_selector('input[type="password"]', timeout=8000)
                 use_password = password or (
@@ -610,7 +608,7 @@ class CursorBrowserRegister:
                     + ''.join(random.choices(string.ascii_lowercase, k=5))
                     + '!'
                 )
-                self.log("检测到密码设置页，填写密码...")
+                self.log("Detected password setup page, filling password...")
                 for el in page.query_selector_all('input[type="password"]'):
                     if el.is_visible():
                         el.fill(use_password)
@@ -620,16 +618,16 @@ class CursorBrowserRegister:
                 _click_continue(page)
                 time.sleep(2)
             except Exception:
-                pass  # 无密码页，跳过
+                pass  # No password page, skip
 
-            # --- 密码提交后可能再次出现 Turnstile（如"Welcome to Cursor"页面）---
+            # --- Turnstile may appear again after password submission (e.g., "Welcome to Cursor" page) ---
             _handle_turnstile(page, self.log, self._solve_turnstile)
 
-            # --- 检测手机号验证页（"Phone number" + "Send verification code"）---
+            # --- Detect phone number verification page ("Phone number" + "Send verification code") ---
             try:
                 phone_input = page.query_selector('input[type="tel"], input[placeholder*="555"], input[autocomplete="tel"]')
                 if not phone_input:
-                    # 等几秒看是否跳转到手机号页
+                    # Wait a few seconds to see if it jumps to phone page
                     page.wait_for_selector('input[type="tel"]', timeout=4000)
                     phone_input = page.query_selector('input[type="tel"]')
             except Exception:
@@ -639,21 +637,21 @@ class CursorBrowserRegister:
                 if self.phone_callback:
                     phone_number = self.phone_callback()
                     if phone_number:
-                        self.log(f"检测到手机号验证页，填写手机号: {phone_number[:4]}****")
+                        self.log(f"Detected phone number verification page, filling phone: {phone_number[:4]}****")
                         phone_input.click()
                         phone_input.fill(str(phone_number).strip())
                         time.sleep(0.5)
                         _click_continue(page)
                         time.sleep(3)
-                        # 等待手机验证码输入框（6位数字）
+                        # Wait for SMS code input box (6 digits)
                         try:
                             page.wait_for_selector(
                                 'input[autocomplete="one-time-code"], input[inputmode="numeric"], input[maxlength="1"]',
                                 timeout=30000
                             )
-                            sms_code = self.phone_callback()  # 复用 callback 获取短信码
+                            sms_code = self.phone_callback()  # Reuse callback to get SMS code
                             if sms_code:
-                                self.log(f"填写短信验证码: {sms_code}")
+                                self.log(f"Filling SMS code: {sms_code}")
                                 for digit in str(sms_code).strip():
                                     page.keyboard.press(digit)
                                     time.sleep(0.1)
@@ -661,15 +659,15 @@ class CursorBrowserRegister:
                                 page.keyboard.press("Enter")
                                 time.sleep(3)
                         except Exception as e:
-                            self.log(f"⚠️ 等待短信验证码失败: {e}")
+                            self.log(f"⚠️ Failed to wait for SMS code: {e}")
                 else:
                     raise RuntimeError(
-                        "Cursor 注册需要手机号验证，但未配置 phone_callback。"
-                        "请在 RegisterConfig.extra 中配置接码服务，或手动完成手机号验证。"
+                        "Cursor registration requires phone verification, but phone_callback is not configured."
+                        "Please configure SMS service in RegisterConfig.extra, or manually complete phone verification."
                     )
 
-            # 等待验证码输入框（WorkOS email-verification 页面用 6 个独立格子）
-            self.log("等待验证码输入框...")
+            # Wait for OTP input box (WorkOS email-verification page uses 6 separate cells)
+            self.log("Waiting for OTP input field...")
             OTP_SELECTORS = [
                 'input[name="otp"]',
                 'input[name="code"]',
@@ -682,7 +680,7 @@ class CursorBrowserRegister:
             otp_input = None
             deadline_otp = time.time() + 60
             while time.time() < deadline_otp:
-                # 也判断 URL 是否已到 email-verification
+                # Also check if URL has reached email-verification
                 if "email-verification" in page.url or "verify" in page.url:
                     for sel in OTP_SELECTORS:
                         el = page.query_selector(sel)
@@ -692,7 +690,7 @@ class CursorBrowserRegister:
                     if otp_input:
                         break
                 else:
-                    for sel in OTP_SELECTORS[:2]:  # 快速检查前两个
+                    for sel in OTP_SELECTORS[:2]:  # Quickly check the first two
                         el = page.query_selector(sel)
                         if el and el.is_visible():
                             otp_input = el
@@ -702,17 +700,17 @@ class CursorBrowserRegister:
                 time.sleep(1)
 
             if not otp_input:
-                raise RuntimeError(f"未出现验证码输入框 (url={page.url})")
+                raise RuntimeError(f"OTP input field did not appear (url={page.url})")
 
             if not self.otp_callback:
-                raise RuntimeError("Cursor 注册需要邮箱验证码但未提供 otp_callback")
-            self.log("等待邮箱验证码")
+                raise RuntimeError("Cursor registration requires email OTP but otp_callback was not provided")
+            self.log("Waiting for email OTP")
             otp = self.otp_callback()
             if not otp:
-                raise RuntimeError("未获取到验证码")
-            self.log(f"验证码: {otp}")
+                raise RuntimeError("Failed to get OTP")
+            self.log(f"OTP: {otp}")
 
-            # WorkOS 6格子 OTP：点击第一个格子然后逐键输入
+            # WorkOS 6-cell OTP: click first cell then type digit by digit
             try:
                 otp_input.click()
                 time.sleep(0.3)
@@ -722,19 +720,19 @@ class CursorBrowserRegister:
                 page.keyboard.press(digit)
                 time.sleep(random.uniform(0.08, 0.2))
             time.sleep(1)
-            # WorkOS 自动提交，无需点 Continue；如果没提交就按 Enter
+            # WorkOS auto-submits, no need to click Continue; if not submitted, press Enter
             if "email-verification" in page.url:
                 page.keyboard.press("Enter")
             time.sleep(5)
 
-            # 等待 Session Token
-            self.log("等待 WorkosCursorSessionToken")
+            # Wait for Session Token
+            self.log("Waiting for WorkosCursorSessionToken")
             tok = _wait_for_token(page, timeout=60)
             if not tok:
-                raise RuntimeError("未获取到 WorkosCursorSessionToken")
+                raise RuntimeError("Failed to get WorkosCursorSessionToken")
 
             from platforms.cursor.switch import get_cursor_user_info
             user_info = get_cursor_user_info(tok) or {}
             resolved_email = user_info.get("email", email)
-            self.log(f"注册成功: {resolved_email}")
+            self.log(f"Registration successful: {resolved_email}")
             return {"email": resolved_email, "password": "", "token": tok}

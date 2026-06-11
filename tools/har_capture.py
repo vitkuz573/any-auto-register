@@ -1,14 +1,14 @@
 """
-自动 HAR 抓包工具 — 打开浏览器录制用户操作，保存 HAR 文件。
+Auto HAR capture tool — opens browser to record user actions and saves HAR file.
 
-用法:
-    # 打开浏览器，手动注册，关闭后自动保存 HAR
+Usage:
+    # Open browser, manually register, close to auto-save HAR
     python3 tools/har_capture.py --url https://auth.example.com/signup --name example
 
-    # 带代理
+    # With proxy
     python3 tools/har_capture.py --url https://auth.example.com/signup --name example --proxy http://127.0.0.1:7890
 
-输出:
+Output:
     tools/captures/example.har
 """
 from __future__ import annotations
@@ -27,12 +27,12 @@ def capture_har(url: str, name: str, proxy: str = None, headless: bool = False):
     os.makedirs(CAPTURE_DIR, exist_ok=True)
     har_path = os.path.join(CAPTURE_DIR, f"{name}.har")
 
-    print(f"启动浏览器...")
-    print(f"  目标: {url}")
+    print(f"Starting browser...")
+    print(f"  Target: {url}")
     print(f"  HAR: {har_path}")
     if proxy:
-        print(f"  代理: {proxy}")
-    print(f"\n请在浏览器中完成注册/登录流程，完成后关闭浏览器窗口。\n")
+        print(f"  Proxy: {proxy}")
+    print(f"\nPlease complete the registration/login flow in the browser, then close the browser window.\n")
 
     with sync_playwright() as p:
         launch_args = {"headless": headless}
@@ -49,9 +49,9 @@ def capture_har(url: str, name: str, proxy: str = None, headless: bool = False):
         page = context.new_page()
         page.goto(url, wait_until="domcontentloaded")
 
-        # 等待用户关闭浏览器
+        # Wait for user to close browser
         try:
-            page.wait_for_event("close", timeout=600_000)  # 10 分钟超时
+            page.wait_for_event("close", timeout=600_000)  # 10 minute timeout
         except Exception:
             pass
 
@@ -59,16 +59,16 @@ def capture_har(url: str, name: str, proxy: str = None, headless: bool = False):
         browser.close()
 
     size = os.path.getsize(har_path) if os.path.exists(har_path) else 0
-    print(f"\n✓ HAR 已保存: {har_path} ({size / 1024:.0f} KB)")
-    print(f"\n下一步: python3 tools/har_analyze.py --file {har_path}")
+    print(f"\n✓ HAR saved: {har_path} ({size / 1024:.0f} KB)")
+    print(f"\nNext step: python3 tools/har_analyze.py --file {har_path}")
     return har_path
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="HAR 抓包工具")
-    parser.add_argument("--url", required=True, help="目标 URL")
-    parser.add_argument("--name", required=True, help="站点名称（用于文件名）")
-    parser.add_argument("--proxy", help="代理 URL")
-    parser.add_argument("--headless", action="store_true", help="无头模式")
+    parser = argparse.ArgumentParser(description="HAR capture tool")
+    parser.add_argument("--url", required=True, help="Target URL")
+    parser.add_argument("--name", required=True, help="Site name (used for filename)")
+    parser.add_argument("--proxy", help="Proxy URL")
+    parser.add_argument("--headless", action="store_true", help="Headless mode")
     args = parser.parse_args()
     capture_har(args.url, args.name, proxy=args.proxy, headless=args.headless)

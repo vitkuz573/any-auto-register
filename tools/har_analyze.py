@@ -1,13 +1,13 @@
 """
-HAR 文件自动分析工具 — 解析认证流程，输出结构化报告。
+HAR file auto-analysis tool — parses auth flow and outputs structured report.
 
-用法:
+Usage:
     python3 tools/har_analyze.py --file tools/captures/example.har
 
-    # 输出 markdown 报告
+    # Output markdown report
     python3 tools/har_analyze.py --file tools/captures/example.har --output report.md
 
-    # 只看认证相关请求
+    # Only show auth-related requests
     python3 tools/har_analyze.py --file tools/captures/example.har --auth-only
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qs, unquote
 
 
-# 认证相关 URL 关键词
+# Auth-related URL keywords
 AUTH_KEYWORDS = {
     "auth", "login", "signin", "sign-in", "signup", "sign-up", "register",
     "oauth", "authorize", "callback", "token", "session", "csrf",
@@ -31,7 +31,7 @@ AUTH_KEYWORDS = {
     "account", "user", "profile", "me",
 }
 
-# 敏感 header
+# Sensitive headers
 AUTH_HEADERS = {
     "authorization", "cookie", "set-cookie", "x-csrf-token",
     "openai-sentinel-token", "x-api-key", "x-auth-token",
@@ -44,23 +44,23 @@ def load_har(path: str) -> dict:
 
 
 def is_auth_related(url: str, method: str, req_headers: dict, resp_headers: dict) -> bool:
-    """判断请求是否与认证相关"""
+    """Determine if a request is auth-related"""
     url_lower = url.lower()
 
-    # URL 包含认证关键词
+    # URL contains auth keywords
     if any(kw in url_lower for kw in AUTH_KEYWORDS):
         return True
 
-    # POST 请求通常更重要
+    # POST requests are usually more important
     if method == "POST":
         return True
 
-    # 设置 cookie 的请求
+    # Requests that set cookies
     for h in resp_headers:
         if h.get("name", "").lower() == "set-cookie":
             return True
 
-    # 包含认证 header
+    # Contains auth header
     for h in req_headers:
         if h.get("name", "").lower() in AUTH_HEADERS:
             return True
@@ -69,7 +69,7 @@ def is_auth_related(url: str, method: str, req_headers: dict, resp_headers: dict
 
 
 def extract_redirects(entries: list) -> list[dict]:
-    """提取重定向链"""
+    """Extract redirect chains"""
     redirects = []
     for entry in entries:
         status = entry["response"]["status"]
@@ -87,7 +87,7 @@ def extract_redirects(entries: list) -> list[dict]:
 
 
 def extract_cookies(entries: list) -> dict[str, list]:
-    """提取所有 Set-Cookie"""
+    """Extract all Set-Cookie headers"""
     cookies = defaultdict(list)
     for entry in entries:
         url = entry["request"]["url"]
@@ -101,7 +101,7 @@ def extract_cookies(entries: list) -> dict[str, list]:
 
 
 def extract_js_files(entries: list) -> list[dict]:
-    """提取加载的 JS 文件"""
+    """Extract loaded JS files"""
     js_files = []
     for entry in entries:
         url = entry["request"]["url"]
@@ -116,7 +116,7 @@ def extract_js_files(entries: list) -> list[dict]:
 
 
 def detect_anti_bot(entries: list, js_files: list) -> list[str]:
-    """检测反爬机制"""
+    """Detect anti-bot mechanisms"""
     mechanisms = []
 
     all_urls = [e["request"]["url"] for e in entries]
@@ -156,7 +156,7 @@ def detect_anti_bot(entries: list, js_files: list) -> list[str]:
 
 
 def detect_auth_pattern(entries: list) -> str:
-    """检测认证模式"""
+    """Detect auth pattern"""
     all_urls = [e["request"]["url"] for e in entries]
 
     patterns = []
@@ -183,15 +183,15 @@ def detect_auth_pattern(entries: list) -> str:
 
 
 def analyze_har(har_data: dict, auth_only: bool = False) -> dict:
-    """分析 HAR 文件，返回结构化报告"""
+    """Analyze HAR file and return structured report"""
     entries = har_data.get("log", {}).get("entries", [])
 
-    # 基本信息
+    # Basic info
     domains = set()
     for entry in entries:
         domains.add(urlparse(entry["request"]["url"]).netloc)
 
-    # 过滤认证相关请求
+    # Filter auth-related requests
     auth_entries = []
     for entry in entries:
         req = entry["request"]
@@ -202,15 +202,15 @@ def analyze_har(har_data: dict, auth_only: bool = False) -> dict:
         if auth_only and not is_auth_related(url, method, req["headers"], resp["headers"]):
             continue
 
-        # 解析请求体
+        # Parse request body
         post_data = ""
         if req.get("postData"):
             post_data = req["postData"].get("text", "")
 
-        # 解析响应体
+        # Parse response body
         resp_body = resp.get("content", {}).get("text", "")
 
-        # 提取关键响应头
+        # Extract key response headers
         resp_cookies = []
         resp_location = ""
         for h in resp["headers"]:
@@ -233,7 +233,7 @@ def analyze_har(har_data: dict, auth_only: bool = False) -> dict:
             ),
         })
 
-    # 分析结果
+    # Analysis results
     redirects = extract_redirects(entries)
     cookies = extract_cookies(entries)
     js_files = extract_js_files(entries)
@@ -248,51 +248,51 @@ def analyze_har(har_data: dict, auth_only: bool = False) -> dict:
         "anti_bot": anti_bot,
         "redirects": redirects,
         "cookies": cookies,
-        "js_files": [j for j in js_files if j["size"] > 10000],  # 只列大文件
+        "js_files": [j for j in js_files if j["size"] > 10000],  # Only list large files
         "entries": auth_entries,
     }
 
 
 def format_report(report: dict, format: str = "text") -> str:
-    """格式化分析报告"""
+    """Format analysis report"""
     lines = []
 
     lines.append("=" * 70)
-    lines.append("HAR 认证流程分析报告")
+    lines.append("HAR Auth Flow Analysis Report")
     lines.append("=" * 70)
 
-    lines.append(f"\n## 概览")
-    lines.append(f"  总请求数: {report['total_requests']}")
-    lines.append(f"  认证相关: {report['auth_requests']}")
-    lines.append(f"  域名: {', '.join(report['domains'])}")
-    lines.append(f"  认证模式: {report['auth_pattern']}")
+    lines.append(f"\n## Overview")
+    lines.append(f"  Total requests: {report['total_requests']}")
+    lines.append(f"  Auth-related: {report['auth_requests']}")
+    lines.append(f"  Domains: {', '.join(report['domains'])}")
+    lines.append(f"  Auth pattern: {report['auth_pattern']}")
 
     if report["anti_bot"]:
-        lines.append(f"\n## 反爬机制")
+        lines.append(f"\n## Anti-bot Mechanisms")
         for m in report["anti_bot"]:
             lines.append(f"  - {m}")
 
     if report["cookies"]:
-        lines.append(f"\n## Cookie 设置")
+        lines.append(f"\n## Cookie Settings")
         for domain, names in report["cookies"].items():
             unique = sorted(set(names))
             lines.append(f"  {domain}: {', '.join(unique)}")
 
     if report["redirects"]:
-        lines.append(f"\n## 重定向链 ({len(report['redirects'])} 个)")
+        lines.append(f"\n## Redirect Chains ({len(report['redirects'])})")
         for r in report["redirects"][:20]:
             from_short = urlparse(r["from"]).path[:50]
             to_short = r["to"][:60]
             lines.append(f"  {r['status']} {from_short} → {to_short}")
 
-    lines.append(f"\n## 认证请求链 ({report['auth_requests']} 个)")
+    lines.append(f"\n## Auth Request Chain ({report['auth_requests']})")
     lines.append("-" * 70)
 
     for i, entry in enumerate(report["entries"], 1):
         parsed = urlparse(entry["url"])
         path = parsed.path
         if parsed.query:
-            # 只显示关键参数
+            # Only show key parameters
             params = parse_qs(parsed.query)
             key_params = {k: v[0][:30] for k, v in params.items()
                          if k in ("client_id", "redirect_uri", "response_type", "scope", "state", "code", "grant_type")}
@@ -302,7 +302,7 @@ def format_report(report: dict, format: str = "text") -> str:
         lines.append(f"\n### [{i}] {entry['method']} {entry['status']} {parsed.netloc}{path}")
 
         if entry["post_data"]:
-            # 尝试格式化 JSON
+            # Try to format as JSON
             try:
                 pd = json.loads(entry["post_data"])
                 lines.append(f"  Body: {json.dumps(pd, ensure_ascii=False, indent=2)[:300]}")
@@ -318,10 +318,10 @@ def format_report(report: dict, format: str = "text") -> str:
         if entry["resp_body_preview"]:
             try:
                 rb = json.loads(entry["resp_body_preview"])
-                # 只显示顶层 key
+                # Only show top-level keys
                 if isinstance(rb, dict):
                     lines.append(f"  Response keys: {list(rb.keys())[:10]}")
-                    # 如果有 page/type 字段，突出显示
+                    # Highlight page/type fields if present
                     if "page" in rb and isinstance(rb["page"], dict):
                         lines.append(f"  page.type: {rb['page'].get('type', '?')}")
                     if "url" in rb:
@@ -331,7 +331,7 @@ def format_report(report: dict, format: str = "text") -> str:
                     lines.append(f"  Response: {entry['resp_body_preview'][:200]}")
 
     if report["js_files"]:
-        lines.append(f"\n## 大 JS 文件 (>10KB)")
+        lines.append(f"\n## Large JS Files (>10KB)")
         for js in report["js_files"][:10]:
             lines.append(f"  {js['size'] / 1024:.0f}KB  {js['url'][:80]}")
 
@@ -340,23 +340,23 @@ def format_report(report: dict, format: str = "text") -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="HAR 文件分析工具")
-    parser.add_argument("--file", required=True, help="HAR 文件路径")
-    parser.add_argument("--output", help="输出报告文件路径")
-    parser.add_argument("--auth-only", action="store_true", help="只显示认证相关请求")
-    parser.add_argument("--json", action="store_true", help="输出 JSON 格式")
-    parser.add_argument("--strict", action="store_true", help="严格模式：只显示核心认证请求")
+    parser = argparse.ArgumentParser(description="HAR file analysis tool")
+    parser.add_argument("--file", required=True, help="HAR file path")
+    parser.add_argument("--output", help="Output report file path")
+    parser.add_argument("--auth-only", action="store_true", help="Only show auth-related requests")
+    parser.add_argument("--json", action="store_true", help="Output JSON format")
+    parser.add_argument("--strict", action="store_true", help="Strict mode: only show core auth requests")
     args = parser.parse_args()
 
     if not os.path.exists(args.file):
-        print(f"文件不存在: {args.file}")
+        print(f"File not found: {args.file}")
         sys.exit(1)
 
     har_data = load_har(args.file)
     report = analyze_har(har_data, auth_only=args.auth_only)
 
     if args.strict:
-        # 严格过滤：只保留核心认证请求
+        # Strict filter: only keep core auth requests
         NOISE_PATTERNS = {
             "/ces/", "/analytics", "/telemetry", "/track", "/rgstr",
             "/settings/", "/memories", "/onboarding", "/announcement",
@@ -376,20 +376,20 @@ def main():
         filtered = []
         for entry in report["entries"]:
             url_lower = entry["url"].lower()
-            # 跳过噪音
+            # Skip noise
             if any(p in url_lower for p in NOISE_PATTERNS):
-                # 但如果匹配 KEEP_PATTERNS 则保留
+                # But keep if it matches KEEP_PATTERNS
                 if not any(p in url_lower for p in KEEP_PATTERNS):
                     continue
-            # 保留重定向
+            # Keep redirects
             if entry["status"] in (301, 302, 303, 307, 308):
                 filtered.append(entry)
                 continue
-            # 保留认证关键请求
+            # Keep key auth requests
             if any(p in url_lower for p in KEEP_PATTERNS):
                 filtered.append(entry)
                 continue
-            # 保留 POST 到 auth 域名
+            # Keep POST to auth domain
             if entry["method"] == "POST" and any(d in url_lower for d in ("auth.", "sentinel.")):
                 filtered.append(entry)
                 continue
@@ -404,7 +404,7 @@ def main():
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(output)
-        print(f"✓ 报告已保存: {args.output}")
+        print(f"✓ Report saved: {args.output}")
     else:
         print(output)
 
