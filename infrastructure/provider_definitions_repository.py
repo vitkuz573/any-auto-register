@@ -297,20 +297,6 @@ _BUILTIN_DEFINITIONS: list[dict] = [
     },
     {
         "provider_type": "captcha",
-        "provider_key": "anti_detect_browser",
-        "label": "Anti-Detect Browser",
-        "description": "Use Camoufox anti-detection browser to solve Turnstile CAPTCHA. Includes fingerprint randomization, webdriver masking, and shadow DOM patching.",
-        "driver_type": "anti_detect_browser",
-        "default_auth_mode": "",
-        "enabled": True,
-        "category": "thirdparty",
-        "auth_modes": [],
-        "fields": [
-            {"key": "solver_url", "label": "Solver URL", "placeholder": "http://localhost:8889"},
-        ],
-    },
-    {
-        "provider_type": "captcha",
         "provider_key": "manual",
         "label": "Manual CAPTCHA",
         "description": "Block and wait for user to manually input the CAPTCHA. Suitable for debugging scenarios.",
