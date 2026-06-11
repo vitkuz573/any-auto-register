@@ -42,8 +42,8 @@ class ProxiesService:
         return self._serialize(item) if item else None
 
     def bulk_create_proxies(self, command: ProxyBulkCreateCommand) -> dict:
-        added = self.repository.bulk_create(command.proxies, command.region)
-        return {"added": added}
+        result = self.repository.bulk_create(command.proxies, command.region)
+        return result
 
     def delete_proxy(self, proxy_id: int) -> dict:
         return {"ok": self.repository.delete(proxy_id)}
@@ -90,14 +90,15 @@ class ProxiesService:
                         f.cancel()
                     break
 
-        added = 0
+        result = {"added": 0, "skipped": 0}
         if working:
-            added = self.repository.bulk_create(working, region)
+            result = self.repository.bulk_create(working, region)
 
         return {
             "scanned": len(unique),
             "working": len(working),
-            "added": added,
+            "added": result["added"],
+            "skipped": result["skipped"],
             "proxies": working[:target_count],
         }
 

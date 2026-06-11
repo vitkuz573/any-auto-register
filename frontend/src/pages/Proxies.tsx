@@ -160,7 +160,14 @@ export default function Proxies() {
                   <span>Error: {scanResult.error}</span>
                 ) : (
                   <span>
-                    Scanned {scanResult.scanned} proxies. Found {scanResult.working} working. Added {scanResult.added} to pool.
+                    Scanned {scanResult.scanned} proxies. Found {scanResult.working} working.
+                    {scanResult.added > 0 ? (
+                      <> Added {scanResult.added} to pool.</>
+                    ) : scanResult.skipped > 0 ? (
+                      <> {scanResult.skipped} already in pool (skipped).</>
+                    ) : (
+                      <> Added 0 to pool.</>
+                    )}
                   </span>
                 )}
               </div>

@@ -35,8 +35,9 @@ class ProxiesRepository:
             session.refresh(model)
             return _to_record(model)
 
-    def bulk_create(self, urls: list[str], region: str = "") -> int:
+    def bulk_create(self, urls: list[str], region: str = "") -> dict:
         added = 0
+        skipped = 0
         with Session(engine) as session:
             for raw in urls:
                 url = raw.strip()
@@ -44,11 +45,12 @@ class ProxiesRepository:
                     continue
                 existing = session.exec(select(ProxyModel).where(ProxyModel.url == url)).first()
                 if existing:
+                    skipped += 1
                     continue
                 session.add(ProxyModel(url=url, region=region))
                 added += 1
             session.commit()
-        return added
+        return {"added": added, "skipped": skipped}
 
     def delete(self, proxy_id: int) -> bool:
         with Session(engine) as session:
