@@ -214,7 +214,13 @@ def _ubid():
 class KiroRegister:
     def __init__(self,proxy=None,tag="REG"):
         self.tag=tag; self.proxy=proxy
-        self.s=curl_requests.Session(impersonate="chrome131")
+        try:
+            self.s=curl_requests.Session(impersonate="chrome131_0_macos")
+        except Exception:
+            try:
+                self.s=curl_requests.Session(impersonate="chrome131_0")
+            except Exception:
+                self.s=curl_requests.Session(impersonate="chrome131")
         if proxy: self.s.proxies={"https":proxy,"http":proxy}
         self.cv,self.cc=_pkce()
         self.state=_uuid(); self.vid=_vid()
