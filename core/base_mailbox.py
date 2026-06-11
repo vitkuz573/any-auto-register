@@ -262,8 +262,11 @@ def _create_laoudo(extra: dict, proxy: str | None) -> 'BaseMailbox':
 
 
 def _create_aitre(extra: dict, proxy: str | None) -> 'BaseMailbox':
+    email = extra.get("aitre_email", "").strip()
+    if not email:
+        raise RuntimeError("Aitre email address is required but not configured. Please set the email address in the provider settings.")
     return AitreMailbox(
-        email=extra.get("aitre_email", ""),
+        email=email,
         api_url=extra.get("aitre_api_url", ""),
     )
 
@@ -502,6 +505,8 @@ class AitreMailbox(BaseMailbox):
         self.api = (api_url or DEFAULT_AITRE_API_URL).rstrip("/")
 
     def get_email(self) -> MailboxAccount:
+        if not self._email:
+            raise RuntimeError("Aitre email address is required but not configured. Please set the email address in the provider settings.")
         return MailboxAccount(email=self._email)
 
     def get_current_ids(self, account: MailboxAccount) -> set:
