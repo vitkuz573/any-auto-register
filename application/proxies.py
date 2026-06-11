@@ -59,7 +59,10 @@ class ProxiesService:
         return {"message": "Proxy check task started"}
 
     def scan_public_proxies(self, target_count: int = 10, test_timeout: int = 10, region: str = "public") -> dict:
-        """Fetch public proxy lists, test them, and add working ones to the database."""
+        """Fetch public proxy lists, test them, and add working ones to the database.
+        
+        Skips proxies that already exist in the DB to avoid redundant testing.
+        """
         all_proxies = []
         for source in _PROXY_SOURCES:
             try:
@@ -78,9 +81,13 @@ class ProxiesService:
                 seen.add(p)
                 unique.append(p)
 
+        # Skip proxies already in the database
+        existing_urls = {p.url for p in self.repository.list()}
+        new_proxies = [p for p in unique if p not in existing_urls]
+
         working = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-            futures = {executor.submit(self._test_proxy, p, test_timeout): p for p in unique}
+            futures = {executor.submit(self._test_proxy, p, test_timeout): p for p in new_proxies}
             for future in concurrent.futures.as_completed(futures):
                 result = future.result()
                 if result:
@@ -96,6 +103,7 @@ class ProxiesService:
 
         return {
             "scanned": len(unique),
+            "new": len(new_proxies),
             "working": len(working),
             "added": result["added"],
             "skipped": result["skipped"],
