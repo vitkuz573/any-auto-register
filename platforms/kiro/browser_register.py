@@ -38,7 +38,7 @@ def _build_proxy_config(proxy: Optional[str]) -> Optional[dict]:
     return config
 
 
-def _wait_for_url(page, substring: str, timeout: int = 60) -> bool:
+def _wait_for_url(page, substring: str, timeout: int = 120) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
         if substring in page.url:
@@ -435,7 +435,7 @@ class KiroBrowserRegister:
 
             # 1. Open Kiro login page
             self.log("Opening Kiro login page")
-            page.goto(f"{KIRO_URL}/signin", wait_until="domcontentloaded", timeout=30000)
+            page.goto(f"{KIRO_URL}/signin", wait_until="domcontentloaded", timeout=120000)
             time.sleep(2)
 
             # 2. Click AWS Builder ID option
@@ -470,7 +470,7 @@ class KiroBrowserRegister:
 
             # 4. Wait for AWS domain
             self.log("Waiting for AWS login page...")
-            if not _wait_for_url(page, AWS_SIGNIN_DOMAIN, timeout=30):
+            if not _wait_for_url(page, AWS_SIGNIN_DOMAIN, timeout=120):
                 if AWS_PROFILE_DOMAIN not in page.url:
                     raise RuntimeError(f"Did not redirect to AWS login page: {page.url}")
 
@@ -529,7 +529,7 @@ class KiroBrowserRegister:
 
             # 7. Wait to jump back to kiro.dev
             self.log("Waiting to jump back to Kiro...")
-            if not _wait_for_url(page, "kiro.dev", timeout=60):
+            if not _wait_for_url(page, "kiro.dev", timeout=120):
                 raise RuntimeError(f"Kiro registration did not redirect back to app: {page.url}")
 
             time.sleep(3)
