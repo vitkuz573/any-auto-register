@@ -19,45 +19,45 @@ _BUILTIN_DEFINITIONS: list[dict] = [
     {
         "provider_type": "mailbox",
         "provider_key": "cfworker_admin_api",
-        "label": "CF Worker（自建域名）",
-        "description": "基于 Cloudflare Worker 的自定义域名邮箱，需自行部署 Worker 后端",
+        "label": "CF Worker (Self-Hosted Domain)",
+        "description": "Custom domain mailbox based on Cloudflare Worker. Requires self-deploying the Worker backend.",
         "driver_type": "cfworker_admin_api",
         "default_auth_mode": "token",
         "enabled": True,
         "category": "selfhost",
-        "auth_modes": [{"value": "token", "label": "Token 认证"}],
+        "auth_modes": [{"value": "token", "label": "Token Authentication"}],
         "fields": [
-            {"key": "cfworker_api_url", "label": "API 地址", "placeholder": "https://your-worker.example.com", "category": "connection"},
+            {"key": "cfworker_api_url", "label": "API URL", "placeholder": "https://your-worker.example.com", "category": "connection"},
             {"key": "cfworker_admin_token", "label": "Admin Token", "secret": True, "category": "auth"},
-            {"key": "cfworker_domain", "label": "邮箱域名", "placeholder": "example.com", "category": "connection"},
-            {"key": "cfworker_fingerprint", "label": "指纹标识（可选）", "placeholder": "", "category": "connection"},
+            {"key": "cfworker_domain", "label": "Mailbox Domain", "placeholder": "example.com", "category": "connection"},
+            {"key": "cfworker_fingerprint", "label": "Fingerprint (Optional)", "placeholder": "", "category": "connection"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "moemail_api",
         "label": "MoeMail（sall.cc）",
-        "description": "自部署临时邮箱，支持自动注册账号或手动登录已有账号",
+        "description": "Self-hosted temporary mailbox. Supports automatic account registration or manual login to existing accounts.",
         "driver_type": "moemail_api",
         "default_auth_mode": "password",
         "enabled": True,
         "category": "selfhost",
         "auth_modes": [
-            {"value": "password", "label": "账号密码"},
+            {"value": "password", "label": "Account Password"},
             {"value": "token", "label": "Session Token"},
         ],
         "fields": [
-            {"key": "moemail_api_url", "label": "API 地址", "placeholder": "https://moemail.example.com", "category": "connection"},
-            {"key": "moemail_username", "label": "用户名（可选）", "category": "auth"},
-            {"key": "moemail_password", "label": "密码（可选）", "secret": True, "category": "auth"},
-            {"key": "moemail_session_token", "label": "Session Token（可选）", "secret": True, "category": "auth"},
+            {"key": "moemail_api_url", "label": "API URL", "placeholder": "https://moemail.example.com", "category": "connection"},
+            {"key": "moemail_username", "label": "Username (Optional)", "category": "auth"},
+            {"key": "moemail_password", "label": "Password (Optional)", "secret": True, "category": "auth"},
+            {"key": "moemail_session_token", "label": "Session Token (Optional)", "secret": True, "category": "auth"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "tempmail_lol_api",
         "label": "TempMail.lol",
-        "description": "免费临时邮箱，开箱即用，无需任何配置",
+        "description": "Free temporary mailbox, ready to use out of the box, no configuration required.",
         "driver_type": "tempmail_lol_api",
         "default_auth_mode": "",
         "enabled": True,
@@ -69,85 +69,85 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "provider_type": "mailbox",
         "provider_key": "mailtm_api",
         "label": "Mail.tm",
-        "description": "免费临时邮箱，无需配置，自动生成",
+        "description": "Free temporary mailbox, no configuration required, auto-generated.",
         "driver_type": "mailtm_api",
         "default_auth_mode": "",
         "enabled": True,
         "category": "free",
         "auth_modes": [],
         "fields": [
-            {"key": "mailtm_api_url", "label": "API 地址（可选）", "placeholder": "https://api.mail.tm", "category": "connection"},
+            {"key": "mailtm_api_url", "label": "API URL (Optional)", "placeholder": "https://api.mail.tm", "category": "connection"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "tempmail_web_api",
         "label": "Temp-Mail.org",
-        "description": "免费临时邮箱，需要浏览器环境（Camoufox）",
+        "description": "Free temporary mailbox, requires browser environment (Camoufox)."
         "driver_type": "tempmail_web_api",
         "default_auth_mode": "",
         "enabled": True,
         "category": "free",
         "auth_modes": [],
         "fields": [
-            {"key": "tempmail_web_base_url", "label": "API 地址（可选）", "placeholder": "https://web2.temp-mail.org", "category": "connection"},
+            {"key": "tempmail_web_base_url", "label": "API URL (Optional)", "placeholder": "https://web2.temp-mail.org", "category": "connection"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "duckmail_api",
-        "label": "DuckMail（自动生成）",
-        "description": "自部署邮箱服务，通过 API 自动生成临时邮箱",
+        "label": "DuckMail (Auto-Generated)",
+        "description": "Self-hosted mailbox service that auto-generates temporary mailboxes via API.",
         "driver_type": "duckmail_api",
         "default_auth_mode": "bearer",
         "enabled": True,
         "category": "selfhost",
         "auth_modes": [{"value": "bearer", "label": "Bearer Token"}],
         "fields": [
-            {"key": "duckmail_api_url", "label": "API 地址", "placeholder": "https://duckmail.example.com", "category": "connection"},
-            {"key": "duckmail_provider_url", "label": "Provider URL（可选）", "placeholder": "", "category": "connection"},
+            {"key": "duckmail_api_url", "label": "API URL", "placeholder": "https://duckmail.example.com", "category": "connection"},
+            {"key": "duckmail_provider_url", "label": "Provider URL (Optional)", "placeholder": "", "category": "connection"},
             {"key": "duckmail_bearer", "label": "Bearer Token", "secret": True, "category": "auth"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "freemail_api",
-        "label": "FreeMail（自动生成）",
-        "description": "自部署邮箱服务，支持账号密码或 Admin Token 认证",
+        "label": "FreeMail (Auto-Generated)",
+        "description": "Self-hosted mailbox service. Supports account/password or Admin Token authentication.",
         "driver_type": "freemail_api",
         "default_auth_mode": "password",
         "enabled": True,
         "category": "selfhost",
-        "auth_modes": [{"value": "password", "label": "账号密码"}, {"value": "token", "label": "Admin Token"}],
+        "auth_modes": [{"value": "password", "label": "Account Password"}, {"value": "token", "label": "Admin Token"}],
         "fields": [
-            {"key": "freemail_api_url", "label": "API 地址", "placeholder": "https://freemail.example.com", "category": "connection"},
+            {"key": "freemail_api_url", "label": "API URL", "placeholder": "https://freemail.example.com", "category": "connection"},
             {"key": "freemail_admin_token", "label": "Admin Token", "secret": True, "category": "auth"},
-            {"key": "freemail_username", "label": "用户名", "category": "auth"},
-            {"key": "freemail_password", "label": "密码", "secret": True, "category": "auth"},
+            {"key": "freemail_username", "label": "Username", "category": "auth"},
+            {"key": "freemail_password", "label": "Password", "secret": True, "category": "auth"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "testmail_api",
-        "label": "Testmail（namespace 邮箱）",
-        "description": "Testmail.app 第三方服务，通过 API Key 和 Namespace 自动拼接邮箱",
+        "label": "Testmail (Namespace Mailbox)",
+        "description": "Third-party service from Testmail.app. Automatically constructs mailbox addresses via API Key and Namespace.",
         "driver_type": "testmail_api",
         "default_auth_mode": "apikey",
         "enabled": True,
         "category": "thirdparty",
         "auth_modes": [{"value": "apikey", "label": "API Key"}],
         "fields": [
-            {"key": "testmail_api_url", "label": "API 地址（可选）", "placeholder": "https://api.testmail.app", "category": "connection"},
+            {"key": "testmail_api_url", "label": "API URL (Optional)", "placeholder": "https://api.testmail.app", "category": "connection"},
             {"key": "testmail_api_key", "label": "API Key", "secret": True, "category": "auth"},
             {"key": "testmail_namespace", "label": "Namespace", "category": "identity"},
-            {"key": "testmail_tag_prefix", "label": "Tag 前缀（可选）", "placeholder": "", "category": "identity"},
+            {"key": "testmail_tag_prefix", "label": "Tag Prefix (Optional)", "placeholder": "", "category": "identity"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "laoudo_api",
-        "label": "Laoudo（固定邮箱）",
-        "description": "laoudo.com 固定域名邮箱，使用已有邮箱地址接收验证码",
+        "label": "Laoudo (Fixed Mailbox)",
+        "description": "Fixed domain mailbox from laoudo.com. Use an existing email address to receive verification codes.",
         "driver_type": "laoudo_api",
         "default_auth_mode": "token",
         "enabled": True,
@@ -155,30 +155,30 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "auth_modes": [{"value": "token", "label": "JWT Token"}],
         "fields": [
             {"key": "laoudo_auth", "label": "Auth Token", "secret": True, "category": "auth"},
-            {"key": "laoudo_email", "label": "邮箱地址", "placeholder": "your@email.com", "category": "identity"},
+            {"key": "laoudo_email", "label": "Email Address", "placeholder": "your@email.com", "category": "identity"},
             {"key": "laoudo_account_id", "label": "Account ID", "category": "identity"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "aitre_api",
-        "label": "Aitre 临时邮箱",
-        "description": "mail.aitre.cc 免费临时邮箱，需指定一个固定邮箱地址",
+        "label": "Aitre Temporary Mailbox",
+        "description": "Free temporary mailbox from mail.aitre.cc. Requires specifying a fixed email address.",
         "driver_type": "aitre_api",
         "default_auth_mode": "",
         "enabled": True,
         "category": "free",
         "auth_modes": [],
         "fields": [
-            {"key": "aitre_email", "label": "邮箱地址", "placeholder": "your@email.com", "category": "identity"},
-            {"key": "aitre_api_url", "label": "API 地址（可选）", "placeholder": "https://mail.aitre.cc/api/tempmail", "category": "connection"},
+            {"key": "aitre_email", "label": "Email Address", "placeholder": "your@email.com", "category": "identity"},
+            {"key": "aitre_api_url", "label": "API URL (Optional)", "placeholder": "https://mail.aitre.cc/api/tempmail", "category": "connection"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "ddg_email",
         "label": "DuckDuckGo Email",
-        "description": "DuckDuckGo Email Protection，生成 @duck.com 别名，通过 IMAP 从转发邮箱读取验证码",
+        "description": "DuckDuckGo Email Protection. Generates @duck.com aliases and reads verification codes via IMAP from the forwarding mailbox.",
         "driver_type": "ddg_email",
         "default_auth_mode": "bearer",
         "enabled": True,
@@ -186,35 +186,35 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "auth_modes": [{"value": "bearer", "label": "Bearer Token"}],
         "fields": [
             {"key": "ddg_bearer", "label": "DDG Bearer Token", "secret": True, "category": "auth"},
-            {"key": "ddg_imap_host", "label": "IMAP 服务器（可选）", "placeholder": "自动推断", "category": "connection"},
-            {"key": "ddg_imap_user", "label": "IMAP 用户名（转发邮箱）", "placeholder": "your@gmail.com", "category": "auth"},
-            {"key": "ddg_imap_pass", "label": "IMAP 密码", "secret": True, "category": "auth"},
+            {"key": "ddg_imap_host", "label": "IMAP Server (Optional)", "placeholder": "Auto-detect", "category": "connection"},
+            {"key": "ddg_imap_user", "label": "IMAP Username (Forwarding Mailbox)", "placeholder": "your@gmail.com", "category": "auth"},
+            {"key": "ddg_imap_pass", "label": "IMAP Password", "secret": True, "category": "auth"},
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "local_ms_pool",
-        "label": "本地微软邮箱池",
-        "description": "导入心蓝邮箱助手通用格式账号池，优先使用 Client Id + 刷新令牌通过 Microsoft Graph 收验证码",
+        "label": "Local Microsoft Mailbox Pool",
+        "description": "Import mailbox pool in Xinlan Mailbox Assistant universal format. Prioritizes using Client ID + refresh token to receive verification codes via Microsoft Graph.",
         "driver_type": "local_ms_pool",
         "default_auth_mode": "pool",
         "enabled": True,
         "category": "custom",
-        "auth_modes": [{"value": "pool", "label": "账号池"}],
+        "auth_modes": [{"value": "pool", "label": "Account Pool"}],
         "fields": [
             {
                 "key": "local_ms_pool_file",
-                "label": "账号池文件路径",
+                "label": "Account Pool File Path",
                 "placeholder": "/Users/you/ms-mail-pool.txt",
                 "category": "connection",
-                "hint": "可选；每行一条心蓝邮箱助手通用格式。配置文件路径后无需把账号明文粘贴到设置页。",
+                "hint": "Optional; one Xinlan Mailbox Assistant universal format entry per line. After configuring the file path, there is no need to paste account plaintext into the settings page.",
             },
             {
                 "key": "local_ms_pool_text",
-                "label": "账号池文本",
+                "label": "Account Pool Text",
                 "type": "textarea",
                 "category": "auth",
-                "hint": "可选；直接粘贴心蓝邮箱助手通用格式。支持逗号、中文逗号、TAB、---- 分隔。",
+                "hint": "Optional; directly paste Xinlan Mailbox Assistant universal format. Supports comma, Chinese comma, TAB, and ---- delimiters.",
             },
             {
                 "key": "local_ms_graph_scope",
@@ -224,25 +224,25 @@ _BUILTIN_DEFINITIONS: list[dict] = [
             },
             {
                 "key": "local_ms_pool_state_file",
-                "label": "占用状态文件",
-                "placeholder": "默认 data/.local_ms_mailbox_pool_state.json",
+                "label": "Occupancy State File",
+                "placeholder": "Default: data/.local_ms_mailbox_pool_state.json",
                 "category": "connection",
-                "hint": "用于避免同一个邮箱被重复分配；清空该文件可重置账号池占用状态。",
+                "hint": "Used to prevent the same mailbox from being assigned repeatedly. Clearing this file resets the account pool occupancy state.",
             },
             {
                 "key": "local_ms_pool_allow_reuse",
-                "label": "允许重复使用邮箱",
+                "label": "Allow Reusing Mailboxes",
                 "type": "toggle",
                 "category": "connection",
-                "hint": "测试时可开启；批量注册建议关闭。",
+                "hint": "Can be enabled during testing; recommended to disable for bulk registration.",
             },
         ],
     },
     {
         "provider_type": "mailbox",
         "provider_key": "generic_http_mailbox",
-        "label": "通用 HTTP 邮箱",
-        "description": "通过配置 HTTP 端点和认证方式对接任意邮箱 API，适合高级用户",
+        "label": "Generic HTTP Mailbox",
+        "description": "Connect to any mailbox API by configuring HTTP endpoints and authentication methods. Suitable for advanced users.",
         "driver_type": "generic_http_mailbox",
         "default_auth_mode": "",
         "enabled": True,
@@ -255,7 +255,7 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "provider_type": "captcha",
         "provider_key": "yescaptcha_api",
         "label": "YesCaptcha",
-        "description": "YesCaptcha 云端验证码识别服务，支持 Turnstile 等类型",
+        "description": "YesCaptcha cloud CAPTCHA recognition service. Supports Turnstile and other types.",
         "driver_type": "yescaptcha_api",
         "default_auth_mode": "apikey",
         "enabled": True,
@@ -269,7 +269,7 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "provider_type": "captcha",
         "provider_key": "twocaptcha_api",
         "label": "2Captcha",
-        "description": "2Captcha 云端验证码识别服务，支持 Turnstile 等类型",
+        "description": "2Captcha cloud CAPTCHA recognition service. Supports Turnstile and other types.",
         "driver_type": "twocaptcha_api",
         "default_auth_mode": "apikey",
         "enabled": True,
@@ -282,22 +282,22 @@ _BUILTIN_DEFINITIONS: list[dict] = [
     {
         "provider_type": "captcha",
         "provider_key": "local_solver",
-        "label": "本地验证码求解器",
-        "description": "调用本地 api_solver 服务（Camoufox/patchright）解 Turnstile 验证码",
+        "label": "Local CAPTCHA Solver",
+        "description": "Invoke local api_solver service (Camoufox/patchright) to solve Turnstile CAPTCHA.",
         "driver_type": "local_solver",
         "default_auth_mode": "",
         "enabled": True,
         "category": "thirdparty",
         "auth_modes": [],
         "fields": [
-            {"key": "solver_url", "label": "Solver 地址", "placeholder": "http://localhost:8889"},
+            {"key": "solver_url", "label": "Solver URL", "placeholder": "http://localhost:8889"},
         ],
     },
     {
         "provider_type": "captcha",
         "provider_key": "manual",
-        "label": "人工打码",
-        "description": "阻塞等待用户手动输入验证码，适用于调试场景",
+        "label": "Manual CAPTCHA",
+        "description": "Block and wait for user to manually input the CAPTCHA. Suitable for debugging scenarios.",
         "driver_type": "manual",
         "default_auth_mode": "",
         "enabled": True,
@@ -310,7 +310,7 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "provider_type": "sms",
         "provider_key": "herosms_api",
         "label": "HeroSMS",
-        "description": "HeroSMS 接码平台，支持号码复用和自动重发",
+        "description": "HeroSMS SMS code receiving platform. Supports number reuse and auto-resend.",
         "driver_type": "herosms_api",
         "default_auth_mode": "apikey",
         "enabled": True,
@@ -318,21 +318,21 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "auth_modes": [{"value": "apikey", "label": "API Key"}],
         "fields": [
             {"key": "herosms_api_key", "label": "API Key", "secret": True, "category": "auth"},
-            {"key": "herosms_default_country", "label": "默认国家", "type": "async-select", "asyncUrl": "/sms/herosms/countries", "asyncValueKey": "id", "asyncLabelKey": "chn", "placeholder": "请选择国家..."},
-            {"key": "herosms_default_service", "label": "默认服务", "type": "async-select", "asyncUrl": "/sms/herosms/services", "asyncValueKey": "code", "asyncLabelKey": "name", "placeholder": "请选择服务..."},
-            {"key": "herosms_max_price", "label": "最大价格 (可选)", "placeholder": "-1"},
-            {"key": "herosms_auto_country", "label": "自动选择最优国家", "type": "toggle", "hint": "启用后忽略默认国家，自动选择价格最低且库存充足的国家"},
-            {"key": "herosms_auto_country_min_stock", "label": "自动选国最低库存", "placeholder": "20"},
-            {"key": "herosms_auto_country_max_price", "label": "自动选国最高价格", "placeholder": "0 (不限)"},
-            {"key": "register_phone_extra_max", "label": "号码复用额外上限", "placeholder": "3"},
-            {"key": "register_reuse_phone_to_max", "label": "复用号码至最大", "type": "toggle"},
+            {"key": "herosms_default_country", "label": "Default Country", "type": "async-select", "asyncUrl": "/sms/herosms/countries", "asyncValueKey": "id", "asyncLabelKey": "chn", "placeholder": "Please select a country..."},
+            {"key": "herosms_default_service", "label": "Default Service", "type": "async-select", "asyncUrl": "/sms/herosms/services", "asyncValueKey": "code", "asyncLabelKey": "name", "placeholder": "Please select a service..."},
+            {"key": "herosms_max_price", "label": "Max Price (Optional)", "placeholder": "-1"},
+            {"key": "herosms_auto_country", "label": "Auto Select Optimal Country", "type": "toggle", "hint": "When enabled, ignores the default country and automatically selects the country with the lowest price and sufficient stock."},
+            {"key": "herosms_auto_country_min_stock", "label": "Auto-Select Country Min Stock", "placeholder": "20"},
+            {"key": "herosms_auto_country_max_price", "label": "Auto-Select Country Max Price", "placeholder": "0 (unlimited)"},
+            {"key": "register_phone_extra_max", "label": "Number Reuse Extra Limit", "placeholder": "3"},
+            {"key": "register_reuse_phone_to_max", "label": "Reuse Number to Max", "type": "toggle"},
         ],
     },
     {
         "provider_type": "sms",
         "provider_key": "sms_activate_api",
         "label": "SMS-Activate",
-        "description": "SMS-Activate 接码平台 (sms-activate.guru)",
+        "description": "SMS-Activate SMS code receiving platform (sms-activate.guru)."
         "driver_type": "sms_activate_api",
         "default_auth_mode": "apikey",
         "enabled": True,
@@ -340,14 +340,14 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "auth_modes": [{"value": "apikey", "label": "API Key"}],
         "fields": [
             {"key": "sms_activate_api_key", "label": "API Key", "secret": True},
-            {"key": "sms_activate_default_country", "label": "默认国家代码", "placeholder": "ru"},
+            {"key": "sms_activate_default_country", "label": "Default Country Code", "placeholder": "ru"},
         ],
     },
     {
         "provider_type": "sms",
         "provider_key": "smsbower_api",
         "label": "SMSBower",
-        "description": "SMSBower 接码平台，API 兼容 HeroSMS，支持号码复用和自动重发",
+        "description": "SMSBower SMS code receiving platform. API compatible with HeroSMS. Supports number reuse and auto-resend.",
         "driver_type": "smsbower_api",
         "default_auth_mode": "apikey",
         "enabled": True,
@@ -355,44 +355,44 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "auth_modes": [{"value": "apikey", "label": "API Key"}],
         "fields": [
             {"key": "smsbower_api_key", "label": "API Key", "secret": True, "category": "auth"},
-            {"key": "smsbower_default_country", "label": "默认国家", "type": "async-select", "asyncUrl": "/sms/smsbower/countries", "asyncValueKey": "id", "asyncLabelKey": "chn", "placeholder": "请选择国家..."},
-            {"key": "smsbower_default_service", "label": "默认服务", "type": "async-select", "asyncUrl": "/sms/smsbower/services", "asyncValueKey": "code", "asyncLabelKey": "name", "placeholder": "请选择服务..."},
-            {"key": "smsbower_max_price", "label": "最大价格 (可选)", "placeholder": "-1"},
-            {"key": "smsbower_auto_country", "label": "自动选择最优国家", "type": "toggle", "hint": "启用后忽略默认国家，自动选择价格最低且库存充足的国家"},
-            {"key": "register_phone_extra_max", "label": "号码复用额外上限", "placeholder": "3"},
-            {"key": "register_reuse_phone_to_max", "label": "复用号码至最大", "type": "toggle"},
+            {"key": "smsbower_default_country", "label": "Default Country", "type": "async-select", "asyncUrl": "/sms/smsbower/countries", "asyncValueKey": "id", "asyncLabelKey": "chn", "placeholder": "Please select a country..."},
+            {"key": "smsbower_default_service", "label": "Default Service", "type": "async-select", "asyncUrl": "/sms/smsbower/services", "asyncValueKey": "code", "asyncLabelKey": "name", "placeholder": "Please select a service..."},
+            {"key": "smsbower_max_price", "label": "Max Price (Optional)", "placeholder": "-1"},
+            {"key": "smsbower_auto_country", "label": "Auto Select Optimal Country", "type": "toggle", "hint": "When enabled, ignores the default country and automatically selects the country with the lowest price and sufficient stock."},
+            {"key": "register_phone_extra_max", "label": "Number Reuse Extra Limit", "placeholder": "3"},
+            {"key": "register_reuse_phone_to_max", "label": "Reuse Number to Max", "type": "toggle"},
         ],
     },
     # ── proxy ────────────────────────────────────────────────────────
     {
         "provider_type": "proxy",
         "provider_key": "api_extract",
-        "label": "API 提取代理",
-        "description": "通过 HTTP API 动态提取代理 IP 列表，适用于大多数代理商的 API 提取接口",
+        "label": "API Extract Proxy",
+        "description": "Dynamically extract proxy IP list via HTTP API. Suitable for most providers' API extraction interfaces.",
         "driver_type": "api_extract",
         "default_auth_mode": "",
         "enabled": False,
         "category": "thirdparty",
         "auth_modes": [],
         "fields": [
-            {"key": "proxy_api_url", "label": "API 地址", "placeholder": "https://provider.com/api/get_proxy?key=xxx"},
-            {"key": "proxy_protocol", "label": "协议", "placeholder": "http / socks5"},
-            {"key": "proxy_username", "label": "用户名 (可选)"},
-            {"key": "proxy_password", "label": "密码 (可选)", "secret": True},
+            {"key": "proxy_api_url", "label": "API URL", "placeholder": "https://provider.com/api/get_proxy?key=xxx"},
+            {"key": "proxy_protocol", "label": "Protocol", "placeholder": "http / socks5"},
+            {"key": "proxy_username", "label": "Username (Optional)"},
+            {"key": "proxy_password", "label": "Password (Optional)", "secret": True},
         ],
     },
     {
         "provider_type": "proxy",
         "provider_key": "rotating_gateway",
-        "label": "旋转网关代理",
-        "description": "固定入口地址，每次请求自动分配不同出口 IP，适用于 BrightData / Oxylabs / IPRoyal 等",
+        "label": "Rotating Gateway Proxy",
+        "description": "Fixed entry address. Each request is automatically assigned a different exit IP. Suitable for BrightData / Oxylabs / IPRoyal, etc.",
         "driver_type": "rotating_gateway",
         "default_auth_mode": "",
         "enabled": False,
         "category": "thirdparty",
         "auth_modes": [],
         "fields": [
-            {"key": "proxy_gateway_url", "label": "网关地址", "placeholder": "http://user:pass@gate.example.com:7777"},
+            {"key": "proxy_gateway_url", "label": "Gateway Address", "placeholder": "http://user:pass@gate.example.com:7777"},
         ],
     },
 ]
@@ -401,10 +401,10 @@ _BUILTIN_DEFINITIONS: list[dict] = [
 class ProviderDefinitionsRepository:
 
     def ensure_seeded(self) -> None:
-        """将内置 provider definition 种子数据写入数据库。
+        """Write built-in provider definition seed data into the database.
 
-        新增的插入，已存在的更新字段定义（label、description、fields 等），
-        确保代码升级后内置 provider 的元数据能同步到数据库。
+        Insert new ones, update field definitions for existing ones (label, description, fields, etc.),
+        ensuring that built-in provider metadata is synchronized to the database after code upgrades.
         """
         with Session(engine) as session:
             existing: dict[str, ProviderDefinitionModel] = {}
@@ -418,15 +418,15 @@ class ProviderDefinitionsRepository:
                 item = existing.get(key)
 
                 if item is None:
-                    # 新增
+                    # New entry
                     item = ProviderDefinitionModel(
                         provider_type=seed["provider_type"],
                         provider_key=seed["provider_key"],
                         created_at=_utcnow(),
                     )
-                    logger.info("种子数据: 新增 %s/%s", seed["provider_type"], seed["provider_key"])
+                    logger.info("Seed data: new entry %s/%s", seed["provider_type"], seed["provider_key"])
 
-                # 更新元数据（每次启动都同步，确保代码变更生效）
+                # Update metadata (synchronize on every startup to ensure code changes take effect)
                 item.label = seed.get("label", seed["provider_key"])
                 item.description = seed.get("description", "")
                 item.driver_type = seed.get("driver_type", seed["provider_key"])
@@ -437,7 +437,7 @@ class ProviderDefinitionsRepository:
                 item.set_auth_modes(list(seed.get("auth_modes") or []))
                 item.set_fields(list(seed.get("fields") or []))
                 if not item.get_metadata():
-                    # 只在 metadata 为空时写入种子值，避免覆盖用户自定义的 pipeline
+                    # Only write seed values when metadata is empty to avoid overwriting user-defined pipelines
                     item.set_metadata(dict(seed.get("metadata") or {}))
                 item.updated_at = _utcnow()
                 session.add(item)
@@ -446,7 +446,7 @@ class ProviderDefinitionsRepository:
             if changed:
                 session.commit()
 
-    # ── 查询（全部从 DB） ────────────────────────────────────────────
+    # ── Query (all from DB) ────────────────────────────────────────────
 
     def list_by_type(self, provider_type: str, *, enabled_only: bool = False) -> list[ProviderDefinitionModel]:
         with Session(engine) as session:
@@ -464,7 +464,7 @@ class ProviderDefinitionsRepository:
             ).first()
 
     def list_driver_templates(self, provider_type: str) -> list[dict]:
-        """从 DB 读取：按 driver_type 去重，返回可用驱动模板列表。"""
+        """Read from DB: deduplicate by driver_type, return the list of available driver templates."""
         with Session(engine) as session:
             definitions = session.exec(
                 select(ProviderDefinitionModel)
@@ -488,7 +488,7 @@ class ProviderDefinitionsRepository:
         return list(seen.values())
 
     def _get_driver_defaults(self, provider_type: str, driver_type: str) -> dict | None:
-        """从 DB 中查找同 driver_type 的已有 definition 作为模板。"""
+        """Find existing definitions with the same driver_type from DB as a template."""
         with Session(engine) as session:
             ref = session.exec(
                 select(ProviderDefinitionModel)
@@ -504,7 +504,7 @@ class ProviderDefinitionsRepository:
                 "fields": ref.get_fields(),
             }
 
-    # ── 写入 ────────────────────────────────────────────────────────
+    # ── Write ────────────────────────────────────────────────────────
 
     def save(
         self,
@@ -525,7 +525,7 @@ class ProviderDefinitionsRepository:
             if definition_id:
                 item = session.get(ProviderDefinitionModel, definition_id)
                 if not item:
-                    raise ValueError("provider definition 不存在")
+                    raise ValueError("Provider definition does not exist")
             else:
                 item = session.exec(
                     select(ProviderDefinitionModel)
@@ -568,7 +568,7 @@ class ProviderDefinitionsRepository:
                 .where(ProviderSettingModel.provider_key == item.provider_key)
             ).first()
             if has_settings:
-                raise ValueError("请先删除对应 provider 配置，再删除 definition")
+                raise ValueError("Please delete the corresponding provider configuration before deleting the definition")
             session.delete(item)
             session.commit()
             return True

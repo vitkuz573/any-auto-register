@@ -180,7 +180,7 @@ export default function TaskHistory() {
                   >
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--text-muted)]">
                       {task.created_at
-                        ? new Date(task.created_at).toLocaleString('zh-CN', {
+                        ? new Date(task.created_at).toLocaleString('en-US', {
                             month: '2-digit',
                             day: '2-digit',
                             hour: '2-digit',

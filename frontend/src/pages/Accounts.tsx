@@ -1931,7 +1931,7 @@ export default function Accounts() {
                   ) : <span className="text-[var(--text-muted)]/50 text-xs">-</span>}
                 </td>
                 <td className="px-3 py-2.5 font-mono text-xs text-[var(--text-muted)] whitespace-nowrap align-top">
-                  {acc.created_at ? new Date(acc.created_at).toLocaleString('zh-CN', { 
+                  {acc.created_at ? new Date(acc.created_at).toLocaleString('en-US', { 
                     month: '2-digit', day: '2-digit',
                     hour: '2-digit', minute: '2-digit',
                     hour12: false 

@@ -448,7 +448,7 @@ class LaoudoMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(4)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -480,7 +480,7 @@ class LaoudoMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(4)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class AitreMailbox(BaseMailbox):
@@ -531,7 +531,7 @@ class AitreMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -561,7 +561,7 @@ class AitreMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class TempMailLolMailbox(BaseMailbox):
@@ -634,7 +634,7 @@ class TempMailLolMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -658,7 +658,7 @@ class TempMailLolMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class MailTmMailbox(BaseMailbox):
@@ -694,7 +694,7 @@ class MailTmMailbox(BaseMailbox):
         r = self._mailtm_request("GET", "/domains")
         domains = r.json().get("hydra:member", [])
         if not domains:
-            raise RuntimeError("mail.tm: 无可用域名")
+            raise RuntimeError("mail.tm: no available domains")
         domain = random.choice(domains)["domain"]
         # 2. Create account
         username = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
@@ -744,7 +744,7 @@ class MailTmMailbox(BaseMailbox):
         import re, time, requests
         token = (account.extra or {}).get("provider_resource", {}).get("metadata", {}).get("token", "")
         if not token:
-            raise RuntimeError("mail.tm: 缺少 token")
+            raise RuntimeError("mail.tm: missing token")
         seen = set(before_ids or [])
         start = time.time()
         while time.time() - start < timeout:
@@ -771,14 +771,14 @@ class MailTmMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
         import time, requests
         token = (account.extra or {}).get("provider_resource", {}).get("metadata", {}).get("token", "")
         if not token:
-            raise RuntimeError("mail.tm: 缺少 token")
+            raise RuntimeError("mail.tm: missing token")
         seen = set(before_ids or [])
         start = time.time()
         while time.time() - start < timeout:
@@ -802,7 +802,7 @@ class MailTmMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class TempMailWebMailbox(BaseMailbox):
@@ -1027,7 +1027,7 @@ class TempMailWebMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(5)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -1053,7 +1053,7 @@ class TempMailWebMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(5)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
     def __del__(self):
         executor = getattr(self, "_executor", None)
@@ -1185,7 +1185,7 @@ class DuckMailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -1219,7 +1219,7 @@ class DuckMailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class CFWorkerMailbox(BaseMailbox):
@@ -1326,7 +1326,7 @@ class CFWorkerMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -1348,7 +1348,7 @@ class CFWorkerMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class MoeMailMailbox(BaseMailbox):
@@ -1607,7 +1607,7 @@ class MoeMailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -1638,7 +1638,7 @@ class MoeMailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class FreemailMailbox(BaseMailbox):
@@ -1750,7 +1750,7 @@ class FreemailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -1776,7 +1776,7 @@ class FreemailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class TestmailMailbox(BaseMailbox):
@@ -1934,7 +1934,7 @@ class TestmailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"Verification code wait timed out ({timeout}s)")
 
     def wait_for_link(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None) -> str:
@@ -1960,7 +1960,7 @@ class TestmailMailbox(BaseMailbox):
             except Exception:
                 pass
             time.sleep(3)
-        raise TimeoutError(f"等待验证链接超时 ({timeout}s)")
+        raise TimeoutError(f"Verification link wait timed out ({timeout}s)")
 
 
 class DDGEmailMailbox(BaseMailbox):
@@ -2127,7 +2127,7 @@ class DDGEmailMailbox(BaseMailbox):
                         pass
             time.sleep(5)
 
-        raise TimeoutError(f"DDG Email IMAP 等待验证码超时 ({timeout}s)")
+        raise TimeoutError(f"DDG Email IMAP verification code wait timed out ({timeout}s)")
 
     def wait_for_code(self, account: MailboxAccount, keyword: str = "",
                       timeout: int = 120, before_ids: set = None,

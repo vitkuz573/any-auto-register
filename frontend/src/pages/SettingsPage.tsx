@@ -303,7 +303,7 @@ function AboutTab() {
               )}
               {info.latest.published_at && (
                 <div className="text-xs text-[var(--text-muted)]">
-                  发布于 {new Date(info.latest.published_at).toLocaleDateString('zh-CN')}
+                  发布于 {new Date(info.latest.published_at).toLocaleDateString('en-US')}
                 </div>
               )}
               <Button

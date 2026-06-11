@@ -366,7 +366,7 @@ class KiroRegister:
         return d
 
     def _setup_profile_cookies(self):
-        self.s.cookies.set("i18next","zh-CN",
+        self.s.cookies.set("i18next","en-US",
             domain="profile.aws.amazon.com",path="/")
         if self._aws_ubid_main:
             self.s.cookies.set("aws-ubid-main",self._aws_ubid_main,
@@ -398,7 +398,7 @@ class KiroRegister:
         return bd
 
     def _profile_headers(self):
-        return {**UA,"accept":"*/*","accept-language":"zh-CN,zh;q=0.9",
+        return {**UA,"accept":"*/*","accept-language":"en-US,en;q=0.9",
             "content-type":"application/json;charset=UTF-8",
             "origin":PROFILE,"priority":"u=1, i",
             "referer":f"{PROFILE}/?workflowID={self.profile_wf_id or ''}",
