@@ -48,7 +48,7 @@ export function buildRegistrationOptions(platformMeta: any) {
     options.push({
       key: 'mailbox',
       label: getOptionLabel('mailbox', identityModeOptions),
-      description: `使用${getOptionLabel('mailbox', identityModeOptions)}自动收验证码并完成注册`,
+      description: `Use ${getOptionLabel('mailbox', identityModeOptions)} to automatically receive verification codes and complete registration`,
       identityProvider: 'mailbox',
       oauthProvider: '',
     })
@@ -60,7 +60,7 @@ export function buildRegistrationOptions(platformMeta: any) {
       options.push({
         key: `oauth:${provider}`,
         label: providerLabel,
-        description: `使用 ${providerLabel} 账号自动创建平台账号`,
+        description: `Use ${providerLabel} account to automatically create platform account`,
         identityProvider: 'oauth_browser',
         oauthProvider: provider,
       })
@@ -86,26 +86,26 @@ export function buildExecutorOptions(
     }
 
     if (executor === 'protocol') {
-      option.description = '不打开浏览器，直接通过协议流程自动注册'
+      option.description = 'Auto-register via protocol flow without opening a browser'
       if (identityProvider !== 'mailbox') {
         option.disabled = true
-        option.reason = '第三方账号注册必须通过浏览器自动化完成'
+        option.reason = 'Third-party account registration must be completed via browser automation'
       }
       return option
     }
 
     if (executor === 'headless') {
       option.description = identityProvider === 'mailbox'
-        ? '浏览器在后台自动执行，界面不可见'
-        : '复用本机浏览器登录态，在后台自动完成第三方登录'
+        ? 'Browser runs in the background, invisible'
+        : 'Reuse local browser session to automatically complete third-party login in the background'
       if (identityProvider === 'oauth_browser' && !reusableBrowser) {
         option.disabled = true
-        option.reason = '需要先在全局配置里填写 Chrome Profile 路径或 Chrome CDP 地址'
+        option.reason = 'Chrome Profile path or Chrome CDP address must be configured in global settings first'
       }
       return option
     }
 
-    option.description = '会打开浏览器窗口，但系统仍自动执行，无需额外交互'
+    option.description = 'A browser window will open, but the system will still auto-execute without extra interaction'
     return option
   })
 }
