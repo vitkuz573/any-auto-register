@@ -463,12 +463,17 @@ def _cleanup_empty_provider_settings():
     """Clean up empty ProviderSettings auto-created by PR #42 in v1.0.7/v1.0.8.
 
     Condition: when config / auth / metadata are all empty dicts,
+    AND the provider is disabled AND not default,
     the user never edited them and they can be safely deleted.
     After deletion, users can re-select the provider via the frontend "Add" button."""
     with Session(engine) as session:
         items = session.exec(select(ProviderSettingModel)).all()
         removed = 0
         for item in items:
+            # Keep enabled/default providers even if config is empty —
+            # user explicitly turned them on (e.g. free mail providers)
+            if item.enabled or item.is_default:
+                continue
             config = item.get_config() or {}
             auth = item.get_auth() or {}
             metadata = item.get_metadata() or {}

@@ -68,12 +68,12 @@ class ProviderSettingsRepository:
         configured = [
             item.provider_key
             for item in self.list_enabled("captcha")
-            if item.provider_key not in {"", "manual", "local_solver"}
+            if item.provider_key not in {"", "manual"}
         ]
         merged: list[str] = []
         for key in configured:
             normalized = str(key or "").strip()
-            if not normalized or normalized in {"manual", "local_solver"} or normalized in merged:
+            if not normalized or normalized in {"manual"} or normalized in merged:
                 continue
             merged.append(normalized)
         return merged
