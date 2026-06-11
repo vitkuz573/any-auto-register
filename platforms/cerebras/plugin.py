@@ -10,6 +10,9 @@ class CerebrasPlatform(BasePlatform):
     name = "cerebras"
     display_name = "Cerebras"
     version = "1.0.0"
+    supported_executors = ["protocol"]
+    supported_identity_modes = ["mailbox"]
+    capabilities = ["query_state", "create_api_key"]
 
     def __init__(self, config: RegisterConfig = None, mailbox: BaseMailbox = None):
         super().__init__(config)
