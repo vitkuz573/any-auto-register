@@ -83,7 +83,7 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "provider_type": "mailbox",
         "provider_key": "tempmail_web_api",
         "label": "Temp-Mail.org",
-        "description": "Free temporary mailbox, requires browser environment (Camoufox)."
+        "description": "Free temporary mailbox, requires browser environment (Camoufox).",
         "driver_type": "tempmail_web_api",
         "default_auth_mode": "",
         "enabled": True,
@@ -332,7 +332,8 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "provider_type": "sms",
         "provider_key": "sms_activate_api",
         "label": "SMS-Activate",
-        "description": "SMS-Activate SMS code receiving platform (sms-activate.guru)."
+        "description": "SMS-Activate SMS code receiving platform (sms-activate.guru).",
+
         "driver_type": "sms_activate_api",
         "default_auth_mode": "apikey",
         "enabled": True,
