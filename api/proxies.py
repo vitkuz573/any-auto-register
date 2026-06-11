@@ -20,6 +20,12 @@ class ProxyBulkCreateRequest(BaseModel):
     region: str = ""
 
 
+class ProxyScanRequest(BaseModel):
+    count: int = 10
+    timeout: int = 10
+    region: str = "public"
+
+
 @router.get("")
 def list_proxies():
     return service.list_proxies()
@@ -57,3 +63,8 @@ def toggle_proxy(proxy_id: int):
 @router.post("/check")
 def check_proxies():
     return service.trigger_check()
+
+
+@router.post("/scan")
+def scan_public_proxies(body: ProxyScanRequest):
+    return service.scan_public_proxies(target_count=body.count, test_timeout=body.timeout, region=body.region)

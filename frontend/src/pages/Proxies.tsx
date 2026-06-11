@@ -3,13 +3,21 @@ import { apiFetch } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, RefreshCw, ToggleLeft, ToggleRight, Globe2, ShieldCheck, CircleOff, Activity } from 'lucide-react'
+import { Plus, Trash2, RefreshCw, ToggleLeft, ToggleRight, Globe2, ShieldCheck, CircleOff, Activity, Radar } from 'lucide-react'
 
 export default function Proxies() {
   const [proxies, setProxies] = useState<any[]>([])
   const [newProxy, setNewProxy] = useState('')
   const [region, setRegion] = useState('')
   const [checking, setChecking] = useState(false)
+
+  // Scanner state
+  const [showScan, setShowScan] = useState(false)
+  const [scanCount, setScanCount] = useState(10)
+  const [scanTimeout, setScanTimeout] = useState(10)
+  const [scanRegion, setScanRegion] = useState('public')
+  const [scanning, setScanning] = useState(false)
+  const [scanResult, setScanResult] = useState<any>(null)
 
   const load = () => apiFetch('/proxies').then(setProxies)
 
@@ -49,6 +57,23 @@ export default function Proxies() {
     setTimeout(() => { load(); setChecking(false) }, 3000)
   }
 
+  const scan = async () => {
+    setScanning(true)
+    setScanResult(null)
+    try {
+      const result = await apiFetch('/proxies/scan', {
+        method: 'POST',
+        body: JSON.stringify({ count: scanCount, timeout: scanTimeout, region: scanRegion }),
+      })
+      setScanResult(result)
+      load()
+    } catch (e: any) {
+      setScanResult({ error: e.message || 'Scan failed' })
+    } finally {
+      setScanning(false)
+    }
+  }
+
   const activeCount = proxies.filter((item) => item.is_active).length
   const totalSuccess = proxies.reduce((sum, item) => sum + Number(item.success_count || 0), 0)
   const totalFail = proxies.reduce((sum, item) => sum + Number(item.fail_count || 0), 0)
@@ -68,12 +93,81 @@ export default function Proxies() {
             <Badge variant="default">Total {proxies.length}</Badge>
             <Badge variant="secondary">Active {activeCount}</Badge>
           </div>
-          <Button variant="outline" size="sm" onClick={check} disabled={checking}>
-            <RefreshCw className={`h-4 w-4 mr-1.5 ${checking ? 'animate-spin' : ''}`} />
-            Check All
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowScan(!showScan)} disabled={scanning}>
+              <Radar className={`h-4 w-4 mr-1.5 ${scanning ? 'animate-spin' : ''}`} />
+              {showScan ? 'Close' : 'Scan Public'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={check} disabled={checking}>
+              <RefreshCw className={`h-4 w-4 mr-1.5 ${checking ? 'animate-spin' : ''}`} />
+              Check All
+            </Button>
+          </div>
         </div>
       </Card>
+
+      {/* Scanner panel */}
+      {showScan && (
+        <Card className="bg-[var(--bg-pane)]/60">
+          <div className="space-y-4">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">Public Proxy Scanner</div>
+              <div className="mt-1 text-sm font-medium text-[var(--text-primary)]">Fetch and test public proxy lists</div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">Count</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={scanCount}
+                  onChange={e => setScanCount(Math.min(50, Math.max(1, Number(e.target.value))))}
+                  className="control-surface mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">Timeout (s)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={scanTimeout}
+                  onChange={e => setScanTimeout(Math.min(60, Math.max(1, Number(e.target.value))))}
+                  className="control-surface mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">Region</label>
+                <input
+                  value={scanRegion}
+                  onChange={e => setScanRegion(e.target.value)}
+                  placeholder="public"
+                  className="control-surface mt-1"
+                />
+              </div>
+            </div>
+            <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-pane)]/45 px-3.5 py-2.5 text-xs leading-5 text-[var(--text-secondary)]">
+              Scans public proxy lists (GitHub), tests each proxy against httpbin.org, and adds working ones to the pool.
+            </div>
+            <Button onClick={scan} disabled={scanning} className="w-full">
+              <Radar className={`h-4 w-4 mr-1.5 ${scanning ? 'animate-spin' : ''}`} />
+              {scanning ? 'Scanning...' : 'Start Scan'}
+            </Button>
+            {scanResult && (
+              <div className={`rounded-lg border px-3.5 py-2.5 text-xs leading-5 ${scanResult.error ? 'border-red-400/30 bg-red-400/10 text-red-400' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400'}`}>
+                {scanResult.error ? (
+                  <span>Error: {scanResult.error}</span>
+                ) : (
+                  <span>
+                    Scanned {scanResult.scanned} proxies. Found {scanResult.working} working. Added {scanResult.added} to pool.
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {metricCards.map(({ label, value, icon: Icon, tone }) => (
