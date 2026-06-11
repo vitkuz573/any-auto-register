@@ -63,7 +63,9 @@ _BUILTIN_DEFINITIONS: list[dict] = [
         "enabled": True,
         "category": "free",
         "auth_modes": [],
-        "fields": [],
+        "fields": [
+            {"key": "tempmail_lol_api_url", "label": "API URL (Optional)", "placeholder": "https://api.tempmail.lol/v2", "category": "connection"},
+        ],
     },
     {
         "provider_type": "mailbox",

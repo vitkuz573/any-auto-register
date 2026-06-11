@@ -161,7 +161,10 @@ def _normalize_api_base_url(value: str | None, *, default: str, label: str) -> s
 
 
 def _create_tempmail(extra: dict, proxy: str | None) -> 'BaseMailbox':
-    return TempMailLolMailbox(proxy=proxy)
+    return TempMailLolMailbox(
+        proxy=proxy,
+        api_url=extra.get("tempmail_lol_api_url", ""),
+    )
 
 
 def _create_tempmail_web(extra: dict, proxy: str | None) -> 'BaseMailbox':
@@ -578,9 +581,20 @@ class TempMailLolMailbox(BaseMailbox):
         r = requests.post(f"{self.api}/inbox/create",
             json={},
             proxies=self.proxy, timeout=15)
+        if r.status_code != 200:
+            error_text = r.text[:300]
+            try:
+                error_detail = r.json()
+            except Exception:
+                error_detail = None
+            raise RuntimeError(
+                f"tempmail.lol create inbox failed: HTTP {r.status_code} {error_text}"
+            )
         data = r.json()
         self._email = data.get("address") or data.get("email", "")
         self._token = data.get("token", "")
+        if not self._email:
+            raise RuntimeError(f"tempmail.lol create inbox returned empty email: {data}")
         return MailboxAccount(
             email=self._email,
             account_id=self._token,
@@ -606,6 +620,8 @@ class TempMailLolMailbox(BaseMailbox):
             r = requests.get(f"{self.api}/inbox",
                 params={"token": account.account_id},
                 proxies=self.proxy, timeout=10)
+            if r.status_code != 200:
+                return set()
             return {str(m["id"]) for m in r.json().get("emails", [])}
         except Exception:
             return set()
@@ -620,6 +636,8 @@ class TempMailLolMailbox(BaseMailbox):
                 r = requests.get(f"{self.api}/inbox",
                     params={"token": account.account_id},
                     proxies=self.proxy, timeout=10)
+                if r.status_code != 200:
+                    raise RuntimeError(f"tempmail.lol inbox fetch failed: HTTP {r.status_code}")
                 for mail in sorted(r.json().get("emails", []), key=lambda x: x.get("date", 0), reverse=True):
                     mid = str(mail.get("id", ""))
                     if mid in seen:
@@ -646,6 +664,8 @@ class TempMailLolMailbox(BaseMailbox):
                 r = requests.get(f"{self.api}/inbox",
                     params={"token": account.account_id},
                     proxies=self.proxy, timeout=10)
+                if r.status_code != 200:
+                    raise RuntimeError(f"tempmail.lol inbox fetch failed: HTTP {r.status_code}")
                 for mail in sorted(r.json().get("emails", []), key=lambda x: x.get("date", 0), reverse=True):
                     mid = str(mail.get("id", ""))
                     if mid in seen:
