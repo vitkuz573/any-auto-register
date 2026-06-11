@@ -20,14 +20,12 @@ class CursorProtocolMailboxWorker:
         captcha_solver=None,
     ) -> dict:
         use_password = password or _rand_password()
-        self.log(f"Email: {email}")
         self.log("Step1: Getting session...")
         state_encoded, _ = self.client.step1_get_session()
         self.log("Step2: Submitting email...")
         self.client.step2_submit_email(email, state_encoded)
         self.log("Step3: Submitting password + Turnstile...")
         self.client.step3_submit_password(use_password, email, state_encoded, captcha_solver)
-        self.log("Waiting for OTP email...")
         otp = otp_callback() if otp_callback else input("OTP: ")
         if not otp:
             raise RuntimeError("Failed to get OTP")

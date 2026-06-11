@@ -63,21 +63,31 @@ class CursorRegister:
         state = {"returnTo": "https://cursor.com/dashboard", "nonce": nonce}
         state_encoded = urllib.parse.quote(urllib.parse.quote(json.dumps(state)))
         url = f"{AUTH}/?state={state_encoded}"
-        self.s.get(url, headers={"user-agent": UA, "accept": "text/html"}, allow_redirects=True)
+        r = self.s.get(url, headers={"user-agent": UA, "accept": "text/html"}, allow_redirects=True)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Cursor session init failed: {r.status_code} {r.text[:200]}")
         state_cookie_name = None
         for cookie in self.s.cookies.jar:
             if 'state-' in cookie.name:
                 state_cookie_name = cookie.name
                 break
+        if not state_cookie_name:
+            raise RuntimeError("Cursor session init failed: no state cookie received")
         return state_encoded, state_cookie_name
 
     def step2_submit_email(self, email, state_encoded):
         bd = _boundary()
         referer = f"{AUTH}/sign-up?state={state_encoded}"
         body = _multipart({"1_state": state_encoded, "email": email}, bd)
-        self.s.post(f"{AUTH}/sign-up",
+        r = self.s.post(f"{AUTH}/sign-up",
                     headers=self._base_headers(ACTION_SUBMIT_EMAIL, referer, boundary=bd),
                     data=body, allow_redirects=False)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Cursor email submission failed: {r.status_code} {r.text[:200]}")
+        if r.status_code == 302:
+            loc = r.headers.get("location", "")
+            if "error" in loc.lower() or "blocked" in loc.lower():
+                raise RuntimeError(f"Cursor email submission blocked: {loc}")
 
     def step3_submit_password(self, password, email, state_encoded, captcha_solver=None):
         captcha_token = ""
@@ -90,9 +100,15 @@ class CursorRegister:
             "1_state": state_encoded, "email": email,
             "password": password, "captchaToken": captcha_token,
         }, bd)
-        self.s.post(f"{AUTH}/sign-up",
+        r = self.s.post(f"{AUTH}/sign-up",
                     headers=self._base_headers(ACTION_SUBMIT_PASSWORD, referer, boundary=bd),
                     data=body, allow_redirects=False)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Cursor password submission failed: {r.status_code} {r.text[:200]}")
+        if r.status_code == 302:
+            loc = r.headers.get("location", "")
+            if "error" in loc.lower() or "blocked" in loc.lower():
+                raise RuntimeError(f"Cursor password submission blocked: {loc}")
 
     def step4_submit_otp(self, otp, email, state_encoded):
         bd = _boundary()
@@ -101,21 +117,29 @@ class CursorRegister:
         r = self.s.post(f"{AUTH}/sign-up",
                         headers=self._base_headers(ACTION_MAGIC_CODE, referer, boundary=bd),
                         data=body, allow_redirects=False)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Cursor OTP submission failed: {r.status_code} {r.text[:200]}")
         loc = r.headers.get("location", "")
+        if r.status_code == 302 and ("error" in loc.lower() or "blocked" in loc.lower()):
+            raise RuntimeError(f"Cursor OTP submission blocked: {loc}")
         m = re.search(r'code=([\w-]+)', loc)
         return m.group(1) if m else ""
 
     def step5_get_token(self, auth_code, state_encoded):
         url = f"{CURSOR}/api/auth/callback?code={auth_code}&state={state_encoded}"
-        self.s.get(url, headers={"user-agent": UA, "accept": "text/html"}, allow_redirects=False)
+        r = self.s.get(url, headers={"user-agent": UA, "accept": "text/html"}, allow_redirects=False)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Cursor token fetch failed: {r.status_code} {r.text[:200]}")
         for cookie in self.s.cookies.jar:
             if cookie.name == "WorkosCursorSessionToken":
                 return urllib.parse.unquote(cookie.value)
-        self.s.get(url, headers={"user-agent": UA}, allow_redirects=True)
+        r2 = self.s.get(url, headers={"user-agent": UA}, allow_redirects=True)
+        if r2.status_code >= 400:
+            raise RuntimeError(f"Cursor token fetch failed (redirect): {r2.status_code} {r2.text[:200]}")
         for cookie in self.s.cookies.jar:
             if cookie.name == "WorkosCursorSessionToken":
                 return urllib.parse.unquote(cookie.value)
-        return ""
+        raise RuntimeError("Cursor token fetch failed: WorkosCursorSessionToken cookie not found")
 
 # CursorBrowserRegister is imported from browser_register.py to avoid code duplication
 from platforms.cursor.browser_register import CursorBrowserRegister  # noqa: F401
