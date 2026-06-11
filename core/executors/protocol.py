@@ -4,7 +4,7 @@ from ..base_executor import BaseExecutor, Response
 
 
 class ProtocolExecutor(BaseExecutor):
-    def __init__(self, proxy: str = None, impersonate: str = "chrome124"):
+    def __init__(self, proxy: str = None, impersonate: str = "safari17_0"):
         super().__init__(proxy)
         self.s = curl_requests.Session()
         self.s.impersonate = impersonate

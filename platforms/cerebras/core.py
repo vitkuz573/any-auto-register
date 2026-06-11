@@ -42,6 +42,9 @@ class CerebrasRegister:
                 "content-type": "application/json",
                 "authorization": f"Basic {STYTCH_PUBLIC_TOKEN}",
                 "x-sdk-client": "eyJldmVudF9pZCI6ImV2ZW50LWlkLTEiLCJhcHBfc2Vzc2lvbl9pZCI6IiIsInBlcnNpc3RlbnRfaWQiOiIiLCJjbGllbnRfc2RrX3R5cGUiOiJqYXZhc2NyaXB0IiwiY2xpZW50X3Nka192ZXJzaW9uIjoiNS4xLjAifQ==",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "origin": "https://cloud.cerebras.ai",
+                "referer": "https://cloud.cerebras.ai/",
             },
             data=json.dumps({
                 "email": email,
@@ -70,6 +73,9 @@ class CerebrasRegister:
             headers={
                 "content-type": "application/json",
                 "authorization": f"Basic {STYTCH_PUBLIC_TOKEN}",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "origin": "https://cloud.cerebras.ai",
+                "referer": "https://cloud.cerebras.ai/",
             },
             data=json.dumps({
                 "code": code,
