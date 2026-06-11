@@ -445,14 +445,23 @@ class KiroRegister:
     # ═══ Step 2: oidc → view → portal.sso → wsh ═══
     def step2_get_wsh(self,redir_url):
         self.log("Step 2: Redirect chain...")
-        r=self.s.get(redir_url,headers=UA,allow_redirects=True)
+        r=self.s.get(redir_url,headers={**UA,"accept":"text/html"},allow_redirects=True)
         view_url=str(r.url)
-        self.log(f"  2a view: {view_url[:120]}")
+        self.log(f"  2a status={r.status_code}, history={len(r.history)}, url={view_url[:120]}")
+        self.log(f"  2a content-type={r.headers.get('content-type','')}")
+        self.log(f"  2a text={r.text[:500]}")
         p=urlparse(view_url); qs=parse_qs(p.query)
         fqs=parse_qs(p.fragment.lstrip("#/?")) if p.fragment else {}
         oid=(qs.get("orchestrator_id") or fqs.get("orchestrator_id",[None]))[0]
         cb=(qs.get("callback_url") or fqs.get("callback_url",[None]))[0]
-        if not oid: self.log("  ❌ No orchestrator_id"); return False
+        if not oid:
+            # Try to extract orchestrator_id from response body as fallback
+            m=re.search(r'orchestrator_id[=:]["\']?([^"\'&\s]+)', r.text)
+            if m:
+                oid=m.group(1)
+                self.log(f"  ★ Found orchestrator_id in body: {oid[:60]}...")
+            else:
+                self.log("  ❌ No orchestrator_id"); return False
         # ★ Save orchestrator_id and callback_url (needed for Step 12)
         self._orchestrator_id=oid
         self._callback_url=cb
